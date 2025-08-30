@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Join & Save</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(120deg, #84fab0, #8fd3f4);
+      text-align: center;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 500px;
+      margin: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    input, button {
+      margin: 8px;
+      padding: 10px;
+      width: 90%;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    #contactsList li {
+      list-style: none;
+      padding: 6px;
+      border-bottom: 1px solid #eee;
+    }
+  </style>
+</head>
+<body>
+  <h1>📇 Join & Save</h1>
+  <div class="card" id="createSessionCard">
+    <h2>Create a Session</h2>
+    <input id="sessionTitle" placeholder="Session title">
+    <input id="duration" placeholder="Duration in minutes">
+    <input id="groupLink" placeholder="WhatsApp group link (optional)">
+    <button id="createSessionBtn">Create Session</button>
+  </div>
+
+  <div class="card" id="sessionCard" style="display:none;">
+    <h2 id="sessionTitleDisplay"></h2>
+    <p>⏳ Time left: <span id="countdown"></span></p>
+
+    <div id="joinForm">
+      <input id="name" placeholder="Your name">
+      <input id="phone" placeholder="WhatsApp number (+234...)">
+      <button id="saveBtn">Join & Save</button>
+    </div>
+
+    <p id="groupLinkDisplay"></p>
+    <h3>Participants</h3>
+    <ul id="contactsList"></ul>
+
+    <button id="shareBtn">🔗 Share Session</button>
+    <button id="downloadBtn" style="display:none;">⬇️ Download VCF</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { 
+      getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, arrayUnion 
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // ✅ Firebase config (yours)
+    const firebaseConfig = {
+      apiKey: "AIzaSyAFjeFQLGysNc5Rm7VH66DkDptCGy7_3xM",
+      authDomain: "test-and-save-181f2.firebaseapp.com",
+      projectId: "test-and-save-181f2",
+      storageBucket: "test-and-save-181f2.appspot.com",
+      messagingSenderId: "412089269144",
+      appId: "1:412089269144:web:7e82b30f10e3999bdec9ed",
+      measurementId: "G-WPL59MWHLT"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let sessionId = null;
+    let countdownInterval = null;
+
+    // Auto-load session if ?id= is in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has("id")) {
+      loadSession(urlParams.get("id"));
+    }
+
+    // Create session
+    document.getElementById("createSessionBtn").onclick = async () => {
+      const title = document.getElementById("sessionTitle").value.trim();
+      const duration = parseInt(document.getElementById("duration").value.trim());
+      const groupLink = document.getElementById("groupLink").value.trim();
+
+      if (!title || !duration) return alert("Enter title and duration");
+
+      sessionId = Date.now().toString();
+      const expiresAt = Date.now() + duration * 60000;
+
+      await setDoc(doc(db, "lists", sessionId), {
+        title,
+        expiresAt,
+        groupLink,
+        contacts: []
+      });
+
+      // Update URL
+      window.history.pushState({}, "", `?id=${sessionId}`);
+
+      loadSession(sessionId);
+    };
+
+    // Load session
+    async function loadSession(id) {
+      sessionId = id;
+      document.getElementById("createSessionCard").style.display = "none";
+      document.getElementById("sessionCard").style.display = "block";
+
+      const sessionRef = doc(db, "lists", id);
+      const snap = await getDoc(sessionRef);
+      if (!snap.exists()) return alert("Session not found");
+
+      const data = snap.data();
+      document.getElementById("sessionTitleDisplay").textContent = data.title;
+
+      // Show group link if available
+      if (data.groupLink) {
+        document.getElementById("groupLinkDisplay").innerHTML = 
+          `<a href="${data.groupLink}" target="_blank">👉 Join WhatsApp Group</a>`;
+      }
+
+      // Start countdown
+      startCountdown(data.expiresAt);
+
+      // Listen for contacts
+      onSnapshot(sessionRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const contacts = docSnap.data().contacts || [];
+          const list = document.getElementById("contactsList");
+          list.innerHTML = "";
+          contacts.forEach(c => {
+            const li = document.createElement("li");
+            li.textContent = `${c.name} - ${c.phone}`;
+            list.appendChild(li);
+          });
+
+          if (Date.now() > docSnap.data().expiresAt) {
+            document.getElementById("joinForm").style.display = "none";
+            document.getElementById("downloadBtn").style.display = "block";
+          }
+        }
+      });
+    }
+
+    // Save contact
+    document.getElementById("saveBtn").onclick = async () => {
+      const name = document.getElementById("name").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+
+      if (!name || !phone.startsWith("+")) return alert("Enter valid name & phone (+234...)");
+
+      const sessionRef = doc(db, "lists", sessionId);
+      await updateDoc(sessionRef, {
+        contacts: arrayUnion({ name, phone, createdAt: Date.now() })
+      });
+
+      document.getElementById("name").value = "";
+      document.getElementById("phone").value = "";
+    };
+
+    // Countdown timer
+    function startCountdown(expiry) {
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = setInterval(() => {
+        const remaining = expiry - Date.now();
+        if (remaining <= 0) {
+          document.getElementById("countdown").textContent = "Expired";
+          clearInterval(countdownInterval);
+        } else {
+          const mins = Math.floor(remaining / 60000);
+          const secs = Math.floor((remaining % 60000) / 1000);
+          document.getElementById("countdown").textContent = `${mins}m ${secs}s`;
+        }
+      }, 1000);
+    }
+
+    // Download VCF
+    document.getElementById("downloadBtn").onclick = async () => {
+      const sessionRef = doc(db, "lists", sessionId);
+      const snap = await getDoc(sessionRef);
+      if (!snap.exists()) return;
+
+      const contacts = snap.data().contacts || [];
+      let vcf = "";
+      contacts.forEach(c => {
+        vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL:${c.phone}\nEND:VCARD\n`;
+      });
+
+      const blob = new Blob([vcf], { type: "text/vcard" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "contacts.vcf";
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    // Share session
+    document.getElementById("shareBtn").onclick = () => {
+      const link = `${window.location.origin}?id=${sessionId}`;
+      if (navigator.share) {
+        navigator.share({
+          title: "Join & Save Session",
+          text: "Add your contact here:",
+          url: link
+        }).catch(console.error);
+      } else {
+        navigator.clipboard.writeText(link);
+        alert("Link copied to clipboard!");
+      }
+    };
+  </script>
+</body>
+</html>
