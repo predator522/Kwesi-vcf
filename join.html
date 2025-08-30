@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Join & Save</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #43e97b, #38f9d7);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+    }
+    .container {
+      background: rgba(0,0,0,0.6);
+      padding: 20px;
+      border-radius: 15px;
+      width: 360px;
+      text-align: center;
+    }
+    input {
+      width: 90%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border: none;
+    }
+    button {
+      background: #00c6ff;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: #0072ff;
+    }
+    a.group-link {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: #25D366;
+      color: white;
+      border-radius: 8px;
+      text-decoration: none;
+    }
+    a.group-link:hover {
+      background: #128C7E;
+    }
+    .closed {
+      color: #ff8080;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Join & Save</h2>
+    <p id="status"></p>
+
+    <form id="contactForm" style="display:none;">
+      <input type="text" id="name" placeholder="Enter your name" required><br>
+      <input type="tel" id="phone" placeholder="Enter WhatsApp number (+233...)" required><br>
+      <button type="submit">Join & Save</button>
+    </form>
+
+    <div id="groupSection"></div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const BIN_ID = params.get("session");
+    const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC";
+    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+    let sessionInfo = null;
+
+    window.onload = async () => {
+      const res = await fetch(API_URL, { headers: { "X-Master-Key": API_KEY } });
+      const json = await res.json();
+      sessionInfo = json.record;
+      checkSession();
+    };
+
+    function checkSession() {
+      const now = Date.now();
+      const expiry = sessionInfo.createdAt + sessionInfo.duration * 60 * 60 * 1000;
+
+      if (now < expiry) {
+        document.getElementById("status").innerText = "✅ Session open. Add your contact!";
+        document.getElementById("contactForm").style.display = "block";
+
+        if (sessionInfo.groupLink) {
+          document.getElementById("groupSection").innerHTML = `<a href="${sessionInfo.groupLink}" target="_blank" class="group-link">📲 Join WhatsApp Group</a>`;
+        }
+      } else {
+        document.getElementById("status").innerText = "❌ Session Closed.";
+        document.getElementById("status").classList.add("closed");
+      }
+    }
+
+    document.getElementById("contactForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("name").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+
+      const contacts = sessionInfo.contacts || [];
+      contacts.push({ name, phone });
+
+      const updateRes = await fetch(API_URL, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Master-Key": API_KEY
+        },
+        body: JSON.stringify({ ...sessionInfo, contacts })
+      });
+
+      if (updateRes.ok) {
+        alert("✅ Saved successfully!");
+        document.getElementById("contactForm").reset();
+      } else {
+        alert("❌ Error saving contact");
+      }
+    });
+  </script>
+</body>
+</html>
