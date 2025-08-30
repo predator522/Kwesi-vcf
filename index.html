@@ -2,127 +2,171 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Join & Save - Owner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join & Save – Owner</title>
   <style>
+    /* Animated background */
     body {
       font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      margin: 0; padding: 20px;
+      display: flex; justify-content: center; align-items: flex-start;
       min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: #fff;
+      background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #fbc2eb, #a1c4fd);
+      background-size: 400% 400%;
+      animation: gradientBG 12s ease infinite;
     }
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
     .container {
-      background: rgba(0,0,0,0.6);
+      width: 100%;
+      max-width: 480px;
+      background: #fff;
       padding: 20px;
-      border-radius: 15px;
-      width: 360px;
-      text-align: center;
+      border-radius: 16px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.2);
     }
-    input {
-      width: 90%;
-      padding: 10px;
-      margin: 8px 0;
-      border-radius: 8px;
-      border: none;
+    h2 { text-align: center; font-size: 24px; margin-bottom: 20px; }
+    label { font-weight: bold; display: block; margin-top: 10px; }
+    input, select {
+      width: 100%; padding: 12px; margin-top: 6px;
+      border: 1px solid #ccc; border-radius: 8px; font-size: 16px;
     }
     button {
-      background: #00c6ff;
-      color: white;
-      padding: 10px 15px;
-      border: none;
-      border-radius: 8px;
+      width: 100%; padding: 14px; margin-top: 16px;
+      font-size: 18px; border: none; border-radius: 8px;
+      background: #28a745; color: white; font-weight: bold;
       cursor: pointer;
-      margin-top: 10px;
     }
-    button:hover {
-      background: #0072ff;
+    button:disabled { background: #aaa; }
+    .link-box { margin-top: 15px; padding: 10px; background: #f1f1f1; border-radius: 8px; word-wrap: break-word; }
+    .banner {
+      margin-top: 15px; padding: 12px; border-radius: 8px;
+      color: white; font-weight: bold; text-align: center;
     }
-    .link-box {
-      margin-top: 15px;
-      background: #222;
-      padding: 10px;
-      border-radius: 8px;
-      font-size: 14px;
-      word-wrap: break-word;
-    }
+    .expired { background: #dc3545; }
+    .contacts { margin-top: 20px; }
+    .contacts ul { padding-left: 20px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>📌 Create a Session</h2>
+    <h2>Owner – Create Session</h2>
+    <label>Duration:</label>
+    <input type="number" id="durationValue" placeholder="Enter duration">
+    <select id="durationUnit">
+      <option value="minutes">Minutes</option>
+      <option value="hours">Hours</option>
+      <option value="days">Days</option>
+    </select>
 
-    <form id="settingsForm">
-      <label>Session Duration (hours):</label><br>
-      <input type="number" id="duration" value="24" min="1" required><br>
-      <label>WhatsApp Group Link:</label><br>
-      <input type="url" id="groupLink" placeholder="https://chat.whatsapp.com/..." required><br>
-      <button type="submit">Create Session</button>
-    </form>
+    <label>WhatsApp Group Link:</label>
+    <input type="text" id="groupLink" placeholder="https://chat.whatsapp.com/...">
+    <button onclick="createSession()">Create Session</button>
 
-    <div id="shareSection" style="display:none;">
-      <p>✅ Session created! Share this link:</p>
-      <div class="link-box" id="joinLink"></div>
+    <div id="shareLink" class="link-box" style="display:none;"></div>
+    <div id="banner"></div>
+
+    <div class="contacts" id="contactsBox" style="display:none;">
+      <h3>Contacts</h3>
+      <ul id="contactsList"></ul>
+      <button onclick="downloadVCF()">⬇️ Download Contacts</button>
     </div>
-
-    <hr>
-    <button onclick="downloadContacts()">⬇️ Download Contacts</button>
   </div>
 
-  <script>
-    const BIN_ID = "68b388a0ae596e708fdd3209";
-    const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC";
-    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+<script>
+const API_KEY = "YOUR_JSONBIN_API_KEY"; // replace with your key
+let binId = null, sessionData = null;
 
-    let sessionInfo = null;
+function convertDuration(value, unit) {
+  if (unit === "minutes") return value * 60 * 1000;
+  if (unit === "hours") return value * 60 * 60 * 1000;
+  if (unit === "days") return value * 24 * 60 * 60 * 1000;
+  return value;
+}
 
-    // Create session
-    document.getElementById("settingsForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const duration = parseInt(document.getElementById("duration").value);
-      const groupLink = document.getElementById("groupLink").value.trim();
-      const createdAt = Date.now();
+async function createSession() {
+  const val = parseInt(document.getElementById("durationValue").value);
+  const unit = document.getElementById("durationUnit").value;
+  const groupLink = document.getElementById("groupLink").value.trim();
 
-      const updateRes = await fetch(API_URL, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Master-Key": API_KEY
-        },
-        body: JSON.stringify({ createdAt, duration, groupLink, contacts: [] })
-      });
+  const duration = convertDuration(val, unit);
 
-      if (updateRes.ok) {
-        const baseUrl = window.location.origin;
-        const joinUrl = `${baseUrl}/join.html?session=${BIN_ID}`;
-        document.getElementById("shareSection").style.display = "block";
-        document.getElementById("joinLink").innerText = joinUrl;
-      }
-    });
+  sessionData = {
+    createdAt: Date.now(),
+    duration: duration,
+    groupLink: groupLink,
+    contacts: []
+  };
 
-    // Download VCF
-    async function downloadContacts() {
-      const res = await fetch(API_URL, { headers: { "X-Master-Key": API_KEY } });
-      const json = await res.json();
-      const contacts = json.record.contacts || [];
+  const res = await fetch("https://api.jsonbin.io/v3/bins", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Master-Key": API_KEY
+    },
+    body: JSON.stringify(sessionData)
+  });
 
-      if (contacts.length === 0) {
-        alert("No contacts yet!");
-        return;
-      }
+  const data = await res.json();
+  binId = data.metadata.id;
 
-      let vcf = "";
-      contacts.forEach(c => {
-        vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL:${c.phone}\nEND:VCARD\n`;
-      });
+  document.getElementById("shareLink").style.display = "block";
+  document.getElementById("shareLink").innerHTML =
+    "Share this link with others:<br><b>" +
+    window.location.origin + "/join.html?session=" + binId + "</b>";
 
-      const blob = new Blob([vcf], { type: "text/vcard" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "contacts.vcf";
-      link.click();
-    }
-  </script>
+  pollContacts();
+}
+
+async function pollContacts() {
+  if (!binId) return;
+  const res = await fetch(`https://api.jsonbin.io/v3/bins/${binId}/latest`, {
+    headers: { "X-Master-Key": API_KEY }
+  });
+  const data = await res.json();
+  sessionData = data.record;
+
+  const now = Date.now();
+  const expired = now > sessionData.createdAt + sessionData.duration;
+  const banner = document.getElementById("banner");
+
+  if (expired) {
+    banner.innerHTML = "⚠️ This session has ended. Download contacts now.";
+    banner.className = "banner expired";
+  } else {
+    banner.innerHTML = "";
+    banner.className = "";
+  }
+
+  const contactsBox = document.getElementById("contactsBox");
+  const list = document.getElementById("contactsList");
+  list.innerHTML = "";
+  sessionData.contacts.forEach(c => {
+    const li = document.createElement("li");
+    li.textContent = `${c.name} – ${c.number}`;
+    list.appendChild(li);
+  });
+  contactsBox.style.display = "block";
+
+  setTimeout(pollContacts, 5000);
+}
+
+function downloadVCF() {
+  if (!sessionData || !sessionData.contacts) return;
+  let vcf = "";
+  sessionData.contacts.forEach(c => {
+    vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL:${c.number}\nEND:VCARD\n`;
+  });
+  const blob = new Blob([vcf], { type: "text/vcard" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "contacts.vcf";
+  a.click();
+}
+</script>
 </body>
 </html>
