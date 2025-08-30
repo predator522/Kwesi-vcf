@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Join & Save</title>
+  <title>Join & Save - Owner</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -17,10 +17,10 @@
       background: rgba(0,0,0,0.6);
       padding: 20px;
       border-radius: 15px;
-      width: 340px;
+      width: 360px;
       text-align: center;
     }
-    input, select {
+    input {
       width: 90%;
       padding: 10px;
       margin: 8px 0;
@@ -39,31 +39,35 @@
     button:hover {
       background: #0072ff;
     }
-    .closed {
-      color: #ff8080;
-      font-weight: bold;
+    .link-box {
+      margin-top: 15px;
+      background: #222;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      word-wrap: break-word;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Join & Save</h2>
+    <h2>📌 Create a Session</h2>
 
     <form id="settingsForm">
       <label>Session Duration (hours):</label><br>
       <input type="number" id="duration" value="24" min="1" required><br>
-      <button type="submit">Set Duration</button>
+      <label>WhatsApp Group Link:</label><br>
+      <input type="url" id="groupLink" placeholder="https://chat.whatsapp.com/..." required><br>
+      <button type="submit">Create Session</button>
     </form>
 
-    <form id="contactForm" style="display:none;">
-      <input type="text" id="name" placeholder="Enter your name" required><br>
-      <input type="tel" id="phone" placeholder="Enter WhatsApp number (+233...)" required><br>
-      <button type="submit">Join & Save</button>
-    </form>
+    <div id="shareSection" style="display:none;">
+      <p>✅ Session created! Share this link:</p>
+      <div class="link-box" id="joinLink"></div>
+    </div>
 
-    <p id="status"></p>
     <hr>
-    <button onclick="downloadContacts()">⬇️ Download Contacts (Owner)</button>
+    <button onclick="downloadContacts()">⬇️ Download Contacts</button>
   </div>
 
   <script>
@@ -73,24 +77,11 @@
 
     let sessionInfo = null;
 
-    // Check session status on load
-    window.onload = async () => {
-      const res = await fetch(API_URL, { headers: { "X-Master-Key": API_KEY } });
-      const json = await res.json();
-      sessionInfo = json.record;
-
-      if (!sessionInfo.createdAt) {
-        document.getElementById("status").innerText = "⚠️ Please set session duration first.";
-        document.getElementById("settingsForm").style.display = "block";
-      } else {
-        checkSession();
-      }
-    };
-
-    // Owner sets session duration
+    // Create session
     document.getElementById("settingsForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const duration = parseInt(document.getElementById("duration").value);
+      const groupLink = document.getElementById("groupLink").value.trim();
       const createdAt = Date.now();
 
       const updateRes = await fetch(API_URL, {
@@ -99,55 +90,14 @@
           "Content-Type": "application/json",
           "X-Master-Key": API_KEY
         },
-        body: JSON.stringify({ ...sessionInfo, contacts: sessionInfo?.contacts || [], createdAt, duration })
+        body: JSON.stringify({ createdAt, duration, groupLink, contacts: [] })
       });
 
       if (updateRes.ok) {
-        alert("✅ Session started!");
-        sessionInfo = { ...sessionInfo, createdAt, duration, contacts: sessionInfo?.contacts || [] };
-        checkSession();
-      }
-    });
-
-    // Check expiry
-    function checkSession() {
-      const now = Date.now();
-      const expiry = sessionInfo.createdAt + sessionInfo.duration * 60 * 60 * 1000;
-
-      if (now < expiry) {
-        document.getElementById("status").innerText = `✅ Session open. Expires in ${Math.ceil((expiry-now)/3600000)}h`;
-        document.getElementById("contactForm").style.display = "block";
-        document.getElementById("settingsForm").style.display = "none";
-      } else {
-        document.getElementById("status").innerText = "❌ Session Closed.";
-        document.getElementById("status").classList.add("closed");
-        document.getElementById("contactForm").style.display = "none";
-      }
-    }
-
-    // Save new contact
-    document.getElementById("contactForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const name = document.getElementById("name").value.trim();
-      const phone = document.getElementById("phone").value.trim();
-
-      const contacts = sessionInfo.contacts || [];
-      contacts.push({ name, phone });
-
-      const updateRes = await fetch(API_URL, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Master-Key": API_KEY
-        },
-        body: JSON.stringify({ ...sessionInfo, contacts })
-      });
-
-      if (updateRes.ok) {
-        alert("✅ Saved successfully!");
-        document.getElementById("contactForm").reset();
-      } else {
-        alert("❌ Error saving contact");
+        const baseUrl = window.location.origin;
+        const joinUrl = `${baseUrl}/join.html?session=${BIN_ID}`;
+        document.getElementById("shareSection").style.display = "block";
+        document.getElementById("joinLink").innerText = joinUrl;
       }
     });
 
