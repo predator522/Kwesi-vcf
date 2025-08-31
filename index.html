@@ -78,7 +78,7 @@
   </div>
 
 <script>
-const API_KEY = "YOUR_JSONBIN_API_KEY"; // replace with your key
+const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC"; 
 let binId = null, sessionData = null;
 
 function convertDuration(value, unit) {
@@ -93,6 +93,11 @@ async function createSession() {
   const unit = document.getElementById("durationUnit").value;
   const groupLink = document.getElementById("groupLink").value.trim();
 
+  if (!val || !groupLink) {
+    alert("Please enter both duration and group link.");
+    return;
+  }
+
   const duration = convertDuration(val, unit);
 
   sessionData = {
@@ -102,55 +107,73 @@ async function createSession() {
     contacts: []
   };
 
-  const res = await fetch("https://api.jsonbin.io/v3/bins", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Master-Key": API_KEY
-    },
-    body: JSON.stringify(sessionData)
-  });
+  try {
+    const res = await fetch("https://api.jsonbin.io/v3/bins", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Master-Key": API_KEY
+      },
+      body: JSON.stringify(sessionData)
+    });
 
-  const data = await res.json();
-  binId = data.metadata.id;
+    console.log("Status:", res.status);
+    const txt = await res.text();
+    console.log("Response:", txt);
 
-  document.getElementById("shareLink").style.display = "block";
-  document.getElementById("shareLink").innerHTML =
-    "Share this link with others:<br><b>" +
-    window.location.origin + "/join.html?session=" + binId + "</b>";
+    if (!res.ok) {
+      alert("Error creating session: " + res.status);
+      return;
+    }
 
-  pollContacts();
+    const data = JSON.parse(txt);
+    binId = data.metadata.id;
+
+    document.getElementById("shareLink").style.display = "block";
+    document.getElementById("shareLink").innerHTML =
+      "Share this link with others:<br><b>" +
+      window.location.origin + "/join.html?session=" + binId + "</b>";
+
+    pollContacts();
+  } catch (err) {
+    console.error("Fetch error:", err);
+    alert("Network or server error. Check console for details.");
+  }
 }
 
 async function pollContacts() {
   if (!binId) return;
-  const res = await fetch(`https://api.jsonbin.io/v3/bins/${binId}/latest`, {
-    headers: { "X-Master-Key": API_KEY }
-  });
-  const data = await res.json();
-  sessionData = data.record;
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/bins/${binId}/latest`, {
+      headers: { "X-Master-Key": API_KEY }
+    });
+    const data = await res.json();
+    sessionData = data.record;
 
-  const now = Date.now();
-  const expired = now > sessionData.createdAt + sessionData.duration;
-  const banner = document.getElementById("banner");
+    const now = Date.now();
+    const expired = now > sessionData.createdAt + sessionData.duration;
+    const banner = document.getElementById("banner");
 
-  if (expired) {
-    banner.innerHTML = "⚠️ This session has ended. Download contacts now.";
-    banner.className = "banner expired";
-  } else {
-    banner.innerHTML = "";
-    banner.className = "";
+    if (expired) {
+      banner.innerHTML = "⚠️ This session has ended. Download contacts now.";
+      banner.className = "banner expired";
+    } else {
+      banner.innerHTML = "";
+      banner.className = "";
+    }
+
+    const contactsBox = document.getElementById("contactsBox");
+    const list = document.getElementById("contactsList");
+    list.innerHTML = "";
+    sessionData.contacts.forEach(c => {
+      const li = document.createElement("li");
+      li.textContent = `${c.name} – ${c.number}`;
+      list.appendChild(li);
+    });
+    contactsBox.style.display = "block";
+  } catch (err) {
+    console.error("Poll error:", err);
   }
-
-  const contactsBox = document.getElementById("contactsBox");
-  const list = document.getElementById("contactsList");
-  list.innerHTML = "";
-  sessionData.contacts.forEach(c => {
-    const li = document.createElement("li");
-    li.textContent = `${c.name} – ${c.number}`;
-    list.appendChild(li);
-  });
-  contactsBox.style.display = "block";
 
   setTimeout(pollContacts, 5000);
 }
