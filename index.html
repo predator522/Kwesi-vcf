@@ -1,60 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Join & Save – Owner</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Join & Save - Owner</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f5f6fa;
+      background: #f9f9f9;
+      margin: 0;
+      padding: 0;
       display: flex;
       justify-content: center;
       align-items: flex-start;
       min-height: 100vh;
-      margin: 0;
-      padding: 20px;
     }
     .container {
-      background: white;
-      width: 100%;
-      max-width: 480px;
+      width: 95%;
+      max-width: 500px;
+      background: #fff;
+      margin-top: 20px;
       padding: 20px;
       border-radius: 12px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
     h2 {
       text-align: center;
-      margin-bottom: 15px;
-    }
-    .input-group {
-      margin-bottom: 15px;
+      color: #2c3e50;
     }
     label {
       font-weight: bold;
       display: block;
-      margin-bottom: 6px;
+      margin-top: 10px;
+      margin-bottom: 5px;
     }
     input, select {
       width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      border: 1px solid #ccc;
+      padding: 10px;
       border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-bottom: 15px;
     }
     button {
       width: 100%;
-      padding: 14px;
+      padding: 12px;
       margin-top: 10px;
-      font-size: 16px;
       border: none;
       border-radius: 8px;
+      font-size: 16px;
       cursor: pointer;
+      transition: 0.3s;
     }
-    #createBtn { background: #3498db; color: white; }
-    #downloadBtn { background: #2ecc71; color: white; }
-    #contactsList { margin-top: 20px; }
-    .contact {
+    #createBtn { background: #27ae60; color: white; }
+    #downloadBtn { background: #2980b9; color: white; display:none; }
+    #deleteBtn { background: #e74c3c; color: white; display:none; }
+    button:hover { opacity: 0.9; }
+    .link-box {
+      background: #f0f0f0;
+      padding: 10px;
+      border-radius: 8px;
+      word-wrap: break-word;
+      margin-bottom: 15px;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
       padding: 8px;
       border-bottom: 1px solid #eee;
     }
@@ -62,29 +74,30 @@
 </head>
 <body>
   <div class="container">
-    <h2>Join & Save – Owner</h2>
+    <h2>Join & Save (Owner)</h2>
 
-    <div class="input-group">
-      <label for="groupLink">WhatsApp Group Link</label>
-      <input type="url" id="groupLink" placeholder="https://chat.whatsapp.com/...">
-    </div>
+    <label>Session Name</label>
+    <input type="text" id="sessionName" placeholder="Enter session name" />
 
-    <div class="input-group">
-      <label for="duration">Session Duration</label>
-      <select id="duration">
-        <option value="600">10 minutes</option>
-        <option value="3600">1 hour</option>
-        <option value="86400">1 day</option>
-        <option value="604800">7 days</option>
-      </select>
-    </div>
+    <label>Duration</label>
+    <select id="duration">
+      <option value="5m">5 Minutes</option>
+      <option value="1h">1 Hour</option>
+      <option value="1d">1 Day</option>
+    </select>
+
+    <label>WhatsApp Group Link</label>
+    <input type="url" id="groupLink" placeholder="https://chat.whatsapp.com/..." />
 
     <button id="createBtn">Create Session</button>
-    <button id="downloadBtn" style="display:none;">Download VCF</button>
 
-    <div id="sessionLink" style="margin-top:15px; word-break:break-all;"></div>
+    <div id="sessionLink"></div>
 
-    <div id="contactsList"></div>
+    <h3>Contacts</h3>
+    <ul id="contactsList"></ul>
+
+    <button id="downloadBtn">Download VCF</button>
+    <button id="deleteBtn">Delete Session</button>
   </div>
 
   <script>
@@ -92,16 +105,21 @@
     let binId = null;
     let session = null;
 
-    async function createSession() {
-      const groupLink = document.getElementById("groupLink").value;
-      const duration = parseInt(document.getElementById("duration").value);
+    document.getElementById("createBtn").addEventListener("click", createSession);
+    document.getElementById("downloadBtn").addEventListener("click", downloadVCF);
+    document.getElementById("deleteBtn").addEventListener("click", deleteSession);
 
-      const newSession = {
-        createdAt: Date.now(),
-        duration: duration,
-        groupLink: groupLink,
-        contacts: []
-      };
+    async function createSession() {
+      const name = document.getElementById("sessionName").value.trim();
+      const duration = document.getElementById("duration").value;
+      const groupLink = document.getElementById("groupLink").value.trim();
+
+      if (!name || !groupLink) {
+        alert("Please fill all fields.");
+        return;
+      }
+
+      const payload = { name, duration, groupLink, contacts: [] };
 
       try {
         const res = await fetch("https://api.jsonbin.io/v3/b", {
@@ -110,24 +128,30 @@
             "Content-Type": "application/json",
             "X-Master-Key": API_KEY
           },
-          body: JSON.stringify(newSession)
+          body: JSON.stringify(payload)
         });
+
+        console.log("Status:", res.status);
         const data = await res.json();
-        console.log("Created:", data);
+        console.log("Response:", data);
+
+        if (!res.ok) throw new Error("Error creating session");
 
         binId = data.metadata.id;
-        session = newSession;
+        session = payload;
 
-        const joinUrl = `${window.location.origin}/join.html?session=${binId}`;
-        document.getElementById("sessionLink").innerHTML =
-          `<strong>Share this link:</strong><br><a href="${joinUrl}" target="_blank">${joinUrl}</a>`;
-
-        document.getElementById("downloadBtn").style.display = "block";
+        const link = `${window.location.origin}/join.html?binId=${binId}`;
+        document.getElementById("sessionLink").innerHTML = `
+          <p class="link-box">Share this link: <br><a href="${link}" target="_blank">${link}</a></p>
+          <p>Group: <a href="${groupLink}" target="_blank">${groupLink}</a></p>
+        `;
 
         pollContacts();
+        document.getElementById("downloadBtn").style.display = "block";
+        document.getElementById("deleteBtn").style.display = "block";
       } catch (err) {
-        console.error("Error creating session:", err);
-        alert("Failed to create session.");
+        console.error(err);
+        alert("Error creating session");
       }
     }
 
@@ -139,43 +163,72 @@
         });
         const data = await res.json();
         session = data.record;
-
-        const listDiv = document.getElementById("contactsList");
-        listDiv.innerHTML = "<h3>Contacts:</h3>";
-        session.contacts.forEach(c => {
-          const div = document.createElement("div");
-          div.className = "contact";
-          div.textContent = `${c.name} – ${c.number}`;
-          listDiv.appendChild(div);
-        });
+        renderContacts();
       } catch (err) {
         console.error("Polling error:", err);
       }
       setTimeout(pollContacts, 5000);
     }
 
+    function renderContacts() {
+      const list = document.getElementById("contactsList");
+      list.innerHTML = "";
+      session.contacts.forEach(c => {
+        const li = document.createElement("li");
+        li.textContent = `${c.name} - ${c.number}`;
+        list.appendChild(li);
+      });
+    }
+
     function downloadVCF() {
-      if (!session || !session.contacts || session.contacts.length === 0) {
+      if (!session || !session.contacts.length) {
         alert("No contacts to export.");
         return;
       }
-
-      let vcfData = "";
+      let vcf = "";
       session.contacts.forEach(c => {
-        vcfData += `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL:${c.number}\nEND:VCARD\n`;
+        vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL:${c.number}\nEND:VCARD\n`;
       });
-
-      const blob = new Blob([vcfData], { type: "text/vcard" });
+      const blob = new Blob([vcf], { type: "text/vcard" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "contacts.vcf";
+      a.download = `${session.name}.vcf`;
       a.click();
       URL.revokeObjectURL(url);
     }
 
-    document.getElementById("createBtn").addEventListener("click", createSession);
-    document.getElementById("downloadBtn").addEventListener("click", downloadVCF);
+    async function deleteSession() {
+      if (!binId) {
+        alert("No session to delete.");
+        return;
+      }
+
+      const confirmDelete = confirm("Are you sure you want to delete this session?");
+      if (!confirmDelete) return;
+
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+          method: "DELETE",
+          headers: { "X-Master-Key": API_KEY }
+        });
+
+        if (res.status === 200) {
+          alert("Session deleted successfully.");
+          binId = null;
+          session = null;
+          document.getElementById("sessionLink").innerHTML = "";
+          document.getElementById("contactsList").innerHTML = "";
+          document.getElementById("downloadBtn").style.display = "none";
+          document.getElementById("deleteBtn").style.display = "none";
+        } else {
+          alert("Failed to delete session.");
+        }
+      } catch (err) {
+        console.error("Error deleting session:", err);
+        alert("Error deleting session.");
+      }
+    }
   </script>
 </body>
 </html>
