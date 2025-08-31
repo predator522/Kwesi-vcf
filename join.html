@@ -1,157 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Join & Save – Session</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Join & Save</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f5f6fa;
+      background: linear-gradient(135deg, #74ebd5 0%, #9face6 100%);
       display: flex;
       justify-content: center;
-      align-items: flex-start;
+      align-items: center;
       min-height: 100vh;
       margin: 0;
-      padding: 20px;
     }
     .container {
       background: white;
-      width: 100%;
-      max-width: 420px;
-      padding: 20px;
+      padding: 2rem;
       border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+      text-align: center;
     }
     h2 {
-      text-align: center;
-      margin-bottom: 15px;
-    }
-    .input-group {
-      margin-bottom: 15px;
-    }
-    label {
-      font-weight: bold;
-      display: block;
-      margin-bottom: 6px;
+      margin-bottom: 1rem;
+      font-size: 1.4rem;
+      color: #333;
     }
     input {
       width: 100%;
       padding: 12px;
-      font-size: 16px;
+      margin: 0.5rem 0;
       border: 1px solid #ccc;
       border-radius: 8px;
+      font-size: 1rem;
     }
     button {
       width: 100%;
-      padding: 14px;
-      margin-top: 10px;
-      font-size: 16px;
+      padding: 12px;
+      margin-top: 1rem;
       border: none;
       border-radius: 8px;
+      background: #4cafef;
+      color: white;
+      font-size: 1.1rem;
       cursor: pointer;
+      transition: background 0.2s ease;
     }
-    #joinBtn {
-      background: #27ae60;
-      color: white;
-    }
-    #groupBtn {
-      background: #2ecc71;
-      color: white;
-      text-decoration: none;
-      display: block;
-      text-align: center;
-      padding: 12px;
-      border-radius: 8px;
-      margin-top: 10px;
-    }
-    .expired {
-      background: #e74c3c;
-      color: white;
-      text-align: center;
-      padding: 10px;
-      border-radius: 6px;
-      margin-bottom: 15px;
+    button:hover {
+      background: #2196f3;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h2>Join & Save</h2>
-    <div id="expiredMsg" class="expired" style="display:none;">
-      ❌ This session is closed.
-    </div>
-    <div class="input-group">
-      <label for="name">Your Name</label>
-      <input type="text" id="name" placeholder="Enter your name" required>
-    </div>
-    <div class="input-group">
-      <label for="number">WhatsApp Number (Intl. format)</label>
-      <input type="text" id="number" placeholder="+1234567890" required>
-    </div>
+    <input type="text" id="name" placeholder="Enter your name" />
+    <input type="text" id="number" placeholder="Enter WhatsApp number (+CountryCode...)" />
     <button id="joinBtn">Join & Save</button>
-    <a id="groupBtn" href="#" target="_blank" style="display:none;">
-      Join WhatsApp Group
-    </a>
   </div>
 
   <script>
     const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC";
+
+    // Get binId from URL: join.html?binId=xxxx
     const urlParams = new URLSearchParams(window.location.search);
-    const binId = urlParams.get("session");
+    const binId = urlParams.get("binId");
 
-    let session = null;
-
-    async function loadSession() {
-      if (!binId) {
-        alert("No session ID provided.");
-        return;
-      }
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-          headers: { "X-Master-Key": API_KEY }
-        });
-        const data = await res.json();
-        console.log("Loaded:", data);
-        session = data.record;
-
-        const expiredMsg = document.getElementById("expiredMsg");
-        const joinBtn = document.getElementById("joinBtn");
-        const groupBtn = document.getElementById("groupBtn");
-
-        const now = Date.now();
-        const expiresAt = session.createdAt + session.duration * 1000;
-        if (now > expiresAt) {
-          expiredMsg.style.display = "block";
-          joinBtn.disabled = true;
-        }
-
-        if (session.groupLink) {
-          groupBtn.href = session.groupLink;
-          groupBtn.style.display = "block";
-        }
-
-      } catch (err) {
-        console.error("Error loading session:", err);
-        alert("Failed to load session.");
-      }
+    if (!binId) {
+      alert("No session ID provided. Please use a valid link.");
+      throw new Error("No session ID");
     }
 
-    async function saveContact() {
+    document.getElementById("joinBtn").addEventListener("click", async () => {
       const name = document.getElementById("name").value.trim();
       const number = document.getElementById("number").value.trim();
+
       if (!name || !number) {
         alert("Please enter both name and number.");
         return;
       }
 
-      // make sure contacts exists
-      if (!session.contacts) session.contacts = [];
-
-      session.contacts.push({ name, number });
-
       try {
-        const update = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+        // Get current data
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+          headers: { "X-Master-Key": API_KEY }
+        });
+        const data = await res.json();
+        const session = data.record;
+
+        if (!session.contacts) session.contacts = [];
+        session.contacts.push({ name, number });
+
+        // Update bin
+        const updateRes = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -159,21 +102,19 @@
           },
           body: JSON.stringify(session)
         });
-        console.log("Update status:", update.status);
-        if (update.ok) {
-          alert("✅ Saved! You can now join the group.");
+
+        if (updateRes.ok) {
+          alert("Saved successfully! ✅");
+          document.getElementById("name").value = "";
+          document.getElementById("number").value = "";
         } else {
-          alert("❌ Error saving contact.");
+          alert("Failed to save. Try again.");
         }
       } catch (err) {
-        console.error("Save error:", err);
-        alert("Failed to save contact.");
+        console.error("Error:", err);
+        alert("Error saving. Please try again later.");
       }
-    }
-
-    document.getElementById("joinBtn").addEventListener("click", saveContact);
-
-    loadSession();
+    });
   </script>
 </body>
 </html>
