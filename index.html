@@ -1,128 +1,241 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Join & Save - Create Session</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join & Save - Owner</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      margin: 0;
-    }
-    .container {
-      background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      width: 100%;
-      max-width: 400px;
-      box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+      background: linear-gradient(135deg, #00c6ff, #0072ff);
+      color: white;
       text-align: center;
+      padding: 20px;
     }
-    h2 {
-      margin-bottom: 1rem;
-      font-size: 1.4rem;
-      color: #333;
+    .card {
+      background: rgba(0,0,0,0.5);
+      border-radius: 15px;
+      padding: 20px;
+      max-width: 400px;
+      margin: auto;
     }
-    input, select {
+    input, select, button {
       width: 100%;
       padding: 12px;
-      margin: 0.5rem 0;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 1rem;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 1rem;
+      margin: 8px 0;
       border: none;
       border-radius: 8px;
-      background: #4cafef;
-      color: white;
-      font-size: 1.1rem;
-      cursor: pointer;
-      transition: background 0.2s ease;
+      font-size: 16px;
     }
-    button:hover {
-      background: #2196f3;
+    button {
+      background: #ff9800;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: gray;
+      cursor: not-allowed;
+    }
+    #status {
+      margin-top: 15px;
+      font-size: 14px;
+      text-align: left;
+    }
+    #participants {
+      margin-top: 20px;
+      font-size: 14px;
+      text-align: left;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .spinner {
+      display: none;
+      margin: 10px auto;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top: 4px solid #fff;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Create Session</h2>
-    <input type="text" id="ownerName" placeholder="Your Name" />
-    <input type="text" id="groupLink" placeholder="WhatsApp Group Link" />
-    <select id="duration">
-      <option value="5">5 Minutes</option>
-      <option value="60">1 Hour</option>
-      <option value="1440">1 Day</option>
-    </select>
-    <button id="createBtn">Create Session</button>
-    <p id="shareLink" style="margin-top:1rem; font-size:0.9rem; word-break:break-all;"></p>
+  <h2>Join & Save - Owner</h2>
+  <div class="card">
+    <!-- Create Session Form -->
+    <div id="createForm">
+      <input id="ownerName" placeholder="Your Name">
+      <input id="groupLink" placeholder="WhatsApp Group Link">
+      <select id="duration">
+        <option value="5">5 Minutes</option>
+        <option value="60">1 Hour</option>
+        <option value="1440">1 Day</option>
+      </select>
+      <button id="createBtn">Create Session</button>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" style="display:none;">
+      <p><b>Session Active!</b></p>
+      <p>Expires At: <span id="expiresAtText"></span></p>
+      <p>Share This Link:</p>
+      <p><a id="joinLink" href="#" target="_blank" style="color:#00ffcc;"></a></p>
+      <button id="checkBtn">Check Participants</button>
+      <div class="spinner" id="loader"></div>
+      <div id="status"></div>
+      <div id="participants"></div>
+      <button id="downloadBtn" style="display:none;">Download VCF</button>
+    </div>
   </div>
 
   <script>
     const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC";
+    let binId = localStorage.getItem("binId");
+    let expiresAt = localStorage.getItem("expiresAt");
 
-    document.getElementById("createBtn").addEventListener("click", async () => {
-      const owner = document.getElementById("ownerName").value.trim();
-      const group = document.getElementById("groupLink").value.trim();
-      const durationMinutes = parseInt(document.getElementById("duration").value);
+    const createForm = document.getElementById("createForm");
+    const dashboard = document.getElementById("dashboard");
+    const joinLink = document.getElementById("joinLink");
+    const expiresAtText = document.getElementById("expiresAtText");
+    const loader = document.getElementById("loader");
+    const statusEl = document.getElementById("status");
+    const participantsEl = document.getElementById("participants");
+    const checkBtn = document.getElementById("checkBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
 
-      if (!owner || !group) {
-        alert("Please fill all fields");
-        return;
-      }
+    // Show spinner
+    function showLoader(show) {
+      loader.style.display = show ? "block" : "none";
+    }
 
-      const expiresAt = Date.now() + durationMinutes * 60 * 1000;
-      const session = { owner, group, expiresAt, contacts: [] };
+    // Create session
+    document.getElementById("createBtn").onclick = async () => {
+      const ownerName = document.getElementById("ownerName").value;
+      const groupLink = document.getElementById("groupLink").value;
+      const duration = parseInt(document.getElementById("duration").value);
 
+      if (!ownerName || !groupLink) return alert("Fill all fields!");
+
+      showLoader(true);
       try {
-        // Try Master-Key first
-        let res = await fetch("https://api.jsonbin.io/v3/b", {
+        const expiry = Date.now() + duration * 60000;
+        const payload = { owner: ownerName, groupLink, expiresAt: expiry, contacts: [] };
+
+        const res = await fetch("https://api.jsonbin.io/v3/b", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "X-Master-Key": API_KEY
           },
-          body: JSON.stringify(session)
+          body: JSON.stringify(payload)
         });
 
-        // If not OK, try Access-Key
-        if (!res.ok) {
-          res = await fetch("https://api.jsonbin.io/v3/b", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Access-Key": API_KEY
-            },
-            body: JSON.stringify(session)
-          });
+        const data = await res.json();
+        if (!res.ok) throw new Error("Failed to create session");
+
+        binId = data.metadata?.id || data.id;
+        expiresAt = expiry;
+
+        localStorage.setItem("binId", binId);
+        localStorage.setItem("expiresAt", expiresAt);
+
+        loadDashboard();
+      } catch (e) {
+        alert("Error creating session: " + e.message);
+      }
+      showLoader(false);
+    };
+
+    // Load dashboard
+    function loadDashboard() {
+      createForm.style.display = "none";
+      dashboard.style.display = "block";
+      joinLink.href = `join.html?binId=${binId}`;
+      joinLink.innerText = joinLink.href;
+      expiresAtText.innerText = new Date(parseInt(expiresAt)).toLocaleString();
+      checkParticipants();
+    }
+
+    // Fetch participants
+    async function checkParticipants() {
+      if (!binId) return;
+      showLoader(true);
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+          headers: { "X-Master-Key": API_KEY }
+        });
+        const data = await res.json();
+
+        if (Date.now() >= parseInt(data.record.expiresAt)) {
+          statusEl.innerText = "⏰ Session expired.";
+          checkBtn.style.display = "none";
+          downloadBtn.style.display = "block";
+          return;
         }
 
-        const text = await res.text();
-        console.log("Response:", text);
-
-        if (!res.ok) throw new Error("Error creating session");
-
-        const data = JSON.parse(text);
-        const binId = data.metadata.id;
-
-        const joinUrl = `${window.location.origin}/join.html?binId=${binId}`;
-        document.getElementById("shareLink").innerHTML =
-          `Share this link:<br><a href="${joinUrl}" target="_blank">${joinUrl}</a>`;
-
-      } catch (err) {
-        console.error("Error:", err);
-        alert("❌ Failed to create session. Check console for details.");
+        const participants = data.record.contacts || [];
+        statusEl.innerHTML = `👥 Total Participants: <b>${participants.length}</b>`;
+        participantsEl.innerHTML = participants.map(p => `- ${p.name} (${p.phone})`).join("<br>");
+      } catch (e) {
+        statusEl.innerText = "Error loading participants.";
       }
-    });
+      showLoader(false);
+    }
+
+    checkBtn.onclick = checkParticipants;
+
+    // Download VCF
+    downloadBtn.onclick = async () => {
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+          headers: { "X-Master-Key": API_KEY }
+        });
+        const data = await res.json();
+        const contacts = data.record.contacts || [];
+
+        let vcf = "";
+        contacts.forEach(c => {
+          vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL:${c.phone}\nEND:VCARD\n`;
+        });
+
+        const blob = new Blob([vcf], { type: "text/vcard" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "contacts.vcf";
+        a.click();
+
+        // Reset session
+        localStorage.removeItem("binId");
+        localStorage.removeItem("expiresAt");
+        binId = null; expiresAt = null;
+        dashboard.style.display = "none";
+        createForm.style.display = "block";
+      } catch (e) {
+        alert("Error downloading VCF");
+      }
+    };
+
+    // On page load restore session
+    window.onload = () => {
+      if (binId && expiresAt) {
+        if (Date.now() < parseInt(expiresAt)) {
+          loadDashboard();
+        } else {
+          createForm.style.display = "none";
+          dashboard.style.display = "block";
+          statusEl.innerText = "⏰ Session expired.";
+          checkBtn.style.display = "none";
+          downloadBtn.style.display = "block";
+        }
+      }
+    };
   </script>
 </body>
 </html>
