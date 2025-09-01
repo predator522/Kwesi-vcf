@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Join & Save - Owner</title>
+  <title>Join & Save - Create Session</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -19,8 +19,8 @@
       padding: 2rem;
       border-radius: 12px;
       width: 100%;
-      max-width: 420px;
-      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+      max-width: 400px;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.2);
       text-align: center;
     }
     h2 {
@@ -42,88 +42,50 @@
       margin-top: 1rem;
       border: none;
       border-radius: 8px;
-      background: #ff6f61;
+      background: #4cafef;
       color: white;
       font-size: 1.1rem;
       cursor: pointer;
       transition: background 0.2s ease;
     }
     button:hover {
-      background: #e85c50;
-    }
-    .share-link {
-      margin-top: 1rem;
-      word-wrap: break-word;
-      font-size: 0.9rem;
-      color: #333;
-      padding: 0.6rem;
-      background: #f0f0f0;
-      border-radius: 6px;
-    }
-    .contacts {
-      margin-top: 1.5rem;
-      text-align: left;
-      max-height: 200px;
-      overflow-y: auto;
-      border: 1px solid #ddd;
-      padding: 0.5rem;
-      border-radius: 8px;
-      font-size: 0.9rem;
+      background: #2196f3;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Create a Session</h2>
-    <input type="text" id="ownerName" placeholder="Your name" />
+    <h2>Create Session</h2>
+    <input type="text" id="ownerName" placeholder="Your Name" />
     <input type="text" id="groupLink" placeholder="WhatsApp Group Link" />
     <select id="duration">
-      <option value="15m">15 minutes</option>
-      <option value="1h">1 hour</option>
-      <option value="6h">6 hours</option>
-      <option value="1d">1 day</option>
-      <option value="7d">7 days</option>
+      <option value="5">5 Minutes</option>
+      <option value="60">1 Hour</option>
+      <option value="1440">1 Day</option>
     </select>
     <button id="createBtn">Create Session</button>
-
-    <div id="shareSection" style="display:none;">
-      <p><strong>Share this link:</strong></p>
-      <div class="share-link" id="shareLink"></div>
-    </div>
-
-    <div class="contacts" id="contactsList" style="display:none;">
-      <h3>Participants:</h3>
-      <ul id="contactsUl"></ul>
-    </div>
-
-    <button id="downloadBtn" style="display:none;">Download VCF</button>
-    <button id="deleteBtn" style="display:none;">Delete Session</button>
+    <p id="shareLink" style="margin-top:1rem; font-size:0.9rem; word-break:break-all;"></p>
   </div>
 
   <script>
     const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC";
-    let binId = null;
-    let session = {};
 
     document.getElementById("createBtn").addEventListener("click", async () => {
-      const ownerName = document.getElementById("ownerName").value.trim();
-      const groupLink = document.getElementById("groupLink").value.trim();
-      const duration = document.getElementById("duration").value;
+      const owner = document.getElementById("ownerName").value.trim();
+      const group = document.getElementById("groupLink").value.trim();
+      const durationMinutes = parseInt(document.getElementById("duration").value);
 
-      if (!ownerName || !groupLink) {
-        alert("Please enter all details.");
+      if (!owner || !group) {
+        alert("Please fill all fields");
         return;
       }
 
-      session = {
-        owner: ownerName,
-        groupLink,
-        duration,
-        contacts: []
-      };
+      const expiresAt = Date.now() + durationMinutes * 60 * 1000;
+      const session = { owner, group, expiresAt, contacts: [] };
 
       try {
-        const res = await fetch("https://api.jsonbin.io/v3/b", {
+        // Try Master-Key first
+        let res = await fetch("https://api.jsonbin.io/v3/b", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -131,89 +93,34 @@
           },
           body: JSON.stringify(session)
         });
-        const data = await res.json();
-        console.log("Response:", data);
+
+        // If not OK, try Access-Key
+        if (!res.ok) {
+          res = await fetch("https://api.jsonbin.io/v3/b", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Access-Key": API_KEY
+            },
+            body: JSON.stringify(session)
+          });
+        }
+
+        const text = await res.text();
+        console.log("Response:", text);
 
         if (!res.ok) throw new Error("Error creating session");
 
-        // FIX: support both response styles
-        binId = data.metadata?.id || data.id;
-        session = session;
+        const data = JSON.parse(text);
+        const binId = data.metadata.id;
 
-        // Show share link
         const joinUrl = `${window.location.origin}/join.html?binId=${binId}`;
-        document.getElementById("shareLink").textContent = joinUrl;
-        document.getElementById("shareSection").style.display = "block";
+        document.getElementById("shareLink").innerHTML =
+          `Share this link:<br><a href="${joinUrl}" target="_blank">${joinUrl}</a>`;
 
-        // Show contacts + buttons
-        document.getElementById("contactsList").style.display = "block";
-        document.getElementById("downloadBtn").style.display = "block";
-        document.getElementById("deleteBtn").style.display = "block";
-
-        pollContacts(); // start live updates
       } catch (err) {
-        console.error(err);
-        alert("Failed to create session.");
-      }
-    });
-
-    async function pollContacts() {
-      if (!binId) return;
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-          headers: { "X-Master-Key": API_KEY }
-        });
-        const data = await res.json();
-        session = data.record;
-
-        const ul = document.getElementById("contactsUl");
-        ul.innerHTML = "";
-        session.contacts.forEach(c => {
-          const li = document.createElement("li");
-          li.textContent = `${c.name} - ${c.number}`;
-          ul.appendChild(li);
-        });
-      } catch (err) {
-        console.error("Polling error:", err);
-      }
-      setTimeout(pollContacts, 5000);
-    }
-
-    document.getElementById("downloadBtn").addEventListener("click", () => {
-      if (!session.contacts.length) {
-        alert("No contacts to export.");
-        return;
-      }
-
-      let vcf = "";
-      session.contacts.forEach(c => {
-        vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL:${c.number}\nEND:VCARD\n`;
-      });
-
-      const blob = new Blob([vcf], { type: "text/vcard" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "contacts.vcf";
-      a.click();
-    });
-
-    document.getElementById("deleteBtn").addEventListener("click", async () => {
-      if (!binId) return alert("No session id provided");
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
-          method: "DELETE",
-          headers: { "X-Master-Key": API_KEY }
-        });
-        if (res.ok) {
-          alert("Session deleted!");
-          location.reload();
-        } else {
-          alert("Failed to delete session.");
-        }
-      } catch (err) {
-        console.error("Delete error:", err);
-        alert("Error deleting session.");
+        console.error("Error:", err);
+        alert("❌ Failed to create session. Check console for details.");
       }
     });
   </script>
