@@ -1,120 +1,141 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Join & Save</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #74ebd5 0%, #9face6 100%);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      margin: 0;
-    }
-    .container {
-      background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      width: 100%;
-      max-width: 400px;
-      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-      text-align: center;
-    }
-    h2 {
-      margin-bottom: 1rem;
-      font-size: 1.4rem;
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4);
       color: #333;
+      text-align: center;
+      padding: 20px;
     }
-    input {
+    .card {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      max-width: 400px;
+      margin: auto;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    input, button {
       width: 100%;
       padding: 12px;
-      margin: 0.5rem 0;
-      border: 1px solid #ccc;
+      margin: 8px 0;
+      border: 1px solid #ddd;
       border-radius: 8px;
-      font-size: 1rem;
+      font-size: 16px;
     }
     button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 1rem;
-      border: none;
-      border-radius: 8px;
-      background: #4cafef;
+      background: #28a745;
       color: white;
-      font-size: 1.1rem;
+      font-weight: bold;
+      border: none;
       cursor: pointer;
-      transition: background 0.2s ease;
     }
-    button:hover {
-      background: #2196f3;
+    button:disabled {
+      background: gray;
+      cursor: not-allowed;
+    }
+    .spinner {
+      display: none;
+      margin: 10px auto;
+      border: 4px solid rgba(0, 0, 0, 0.2);
+      border-top: 4px solid #28a745;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    #message {
+      margin-top: 15px;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Join & Save</h2>
-    <input type="text" id="name" placeholder="Enter your name" />
-    <input type="text" id="number" placeholder="Enter WhatsApp number (+CountryCode...)" />
+  <h2>Join & Save</h2>
+  <div class="card">
+    <input id="name" placeholder="Your Name">
+    <input id="phone" placeholder="Your Phone (e.g., +123456789)">
     <button id="joinBtn">Join & Save</button>
+    <div class="spinner" id="loader"></div>
+    <div id="message"></div>
   </div>
 
   <script>
     const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC";
-
-    // Get binId from URL: join.html?binId=xxxx
     const urlParams = new URLSearchParams(window.location.search);
     const binId = urlParams.get("binId");
 
-    if (!binId) {
-      alert("No session ID provided. Please use a valid link.");
-      throw new Error("No session ID");
+    const joinBtn = document.getElementById("joinBtn");
+    const loader = document.getElementById("loader");
+    const message = document.getElementById("message");
+
+    function showLoader(show) {
+      loader.style.display = show ? "block" : "none";
+      joinBtn.disabled = show;
     }
 
-    document.getElementById("joinBtn").addEventListener("click", async () => {
+    joinBtn.onclick = async () => {
       const name = document.getElementById("name").value.trim();
-      const number = document.getElementById("number").value.trim();
+      const phone = document.getElementById("phone").value.trim();
 
-      if (!name || !number) {
-        alert("Please enter both name and number.");
+      if (!name || !phone) {
+        message.innerHTML = "⚠️ Please fill all fields!";
+        return;
+      }
+      if (!binId) {
+        message.innerHTML = "❌ No session found. Check your link.";
         return;
       }
 
+      showLoader(true);
+      message.innerHTML = "";
+
       try {
-        // Get current data
+        // Get existing data
         const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
           headers: { "X-Master-Key": API_KEY }
         });
+        if (!res.ok) throw new Error("Failed to load session");
         const data = await res.json();
-        const session = data.record;
 
-        if (!session.contacts) session.contacts = [];
-        session.contacts.push({ name, number });
+        // Check if expired
+        if (Date.now() >= parseInt(data.record.expiresAt)) {
+          message.innerHTML = "⏰ Sorry, this session has expired.";
+          showLoader(false);
+          return;
+        }
 
-        // Update bin
-        const updateRes = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+        // Add new contact
+        const contacts = data.record.contacts || [];
+        contacts.push({ name, phone });
+
+        await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             "X-Master-Key": API_KEY
           },
-          body: JSON.stringify(session)
+          body: JSON.stringify({
+            ...data.record,
+            contacts
+          })
         });
 
-        if (updateRes.ok) {
-          alert("Saved successfully! ✅");
-          document.getElementById("name").value = "";
-          document.getElementById("number").value = "";
-        } else {
-          alert("Failed to save. Try again.");
-        }
-      } catch (err) {
-        console.error("Error:", err);
-        alert("Error saving. Please try again later.");
+        message.innerHTML = "✅ Saved! You may now join the group.<br><a href='" + data.record.groupLink + "' target='_blank'>Join WhatsApp Group</a>";
+      } catch (e) {
+        message.innerHTML = "❌ Error: " + e.message;
       }
-    });
+      showLoader(false);
+    };
   </script>
 </body>
 </html>
