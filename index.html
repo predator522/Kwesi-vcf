@@ -3,57 +3,59 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Join & Save - Owner</title>
+  <title>CyberSpace VCF – Create Session</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #00c6ff, #0072ff);
-      color: white;
+      background: linear-gradient(-45deg, #1e3a8a, #ffffff, #2563eb, #f0f4ff);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+      color: #333;
       text-align: center;
       padding: 20px;
+      margin: 0;
+    }
+    @keyframes gradientBG {
+      0% { background-position: 0% 50% }
+      50% { background-position: 100% 50% }
+      100% { background-position: 0% 50% }
     }
     .card {
-      background: rgba(0,0,0,0.5);
+      background: white;
       border-radius: 15px;
       padding: 20px;
-      max-width: 400px;
+      max-width: 450px;
       margin: auto;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
-    input, select, button {
+    input, button {
       width: 100%;
       padding: 12px;
       margin: 8px 0;
-      border: none;
+      border: 1px solid #ddd;
       border-radius: 8px;
       font-size: 16px;
     }
     button {
-      background: #ff9800;
+      background: #2563eb;
       color: white;
       font-weight: bold;
+      border: none;
       cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #1e40af;
     }
     button:disabled {
       background: gray;
       cursor: not-allowed;
     }
-    #status {
-      margin-top: 15px;
-      font-size: 14px;
-      text-align: left;
-    }
-    #participants {
-      margin-top: 20px;
-      font-size: 14px;
-      text-align: left;
-      max-height: 200px;
-      overflow-y: auto;
-    }
     .spinner {
       display: none;
       margin: 10px auto;
-      border: 4px solid rgba(255, 255, 255, 0.3);
-      border-top: 4px solid #fff;
+      border: 4px solid rgba(0, 0, 0, 0.2);
+      border-top: 4px solid #2563eb;
       border-radius: 50%;
       width: 30px;
       height: 30px;
@@ -63,178 +65,83 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    #message {
+      margin-top: 15px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
-  <h2>Join & Save - Owner</h2>
+  <h2>CyberSpace VCF</h2>
   <div class="card">
-    <!-- Create Session Form -->
-    <div id="createForm">
-      <input id="ownerName" placeholder="Your Name">
-      <input id="groupLink" placeholder="WhatsApp Group Link">
-      <select id="duration">
-        <option value="5">5 Minutes</option>
-        <option value="60">1 Hour</option>
-        <option value="1440">1 Day</option>
-      </select>
-      <button id="createBtn">Create Session</button>
-    </div>
-
-    <!-- Dashboard -->
-    <div id="dashboard" style="display:none;">
-      <p><b>Session Active!</b></p>
-      <p>Expires At: <span id="expiresAtText"></span></p>
-      <p>Share This Link:</p>
-      <p><a id="joinLink" href="#" target="_blank" style="color:#00ffcc;"></a></p>
-      <button id="checkBtn">Check Participants</button>
-      <div class="spinner" id="loader"></div>
-      <div id="status"></div>
-      <div id="participants"></div>
-      <button id="downloadBtn" style="display:none;">Download VCF</button>
-    </div>
+    <h3>Create a Session</h3>
+    <input id="owner" placeholder="Your Name">
+    <input id="groupLink" placeholder="WhatsApp Group Link">
+    <input id="duration" type="number" min="1" placeholder="Duration (minutes)">
+    <button id="createBtn">Create Session</button>
+    <div class="spinner" id="loader"></div>
+    <div id="message"></div>
   </div>
 
   <script>
+    // 🔑 Your API key
     const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC";
-    let binId = localStorage.getItem("binId");
-    let expiresAt = localStorage.getItem("expiresAt");
 
-    const createForm = document.getElementById("createForm");
-    const dashboard = document.getElementById("dashboard");
-    const joinLink = document.getElementById("joinLink");
-    const expiresAtText = document.getElementById("expiresAtText");
+    const createBtn = document.getElementById("createBtn");
     const loader = document.getElementById("loader");
-    const statusEl = document.getElementById("status");
-    const participantsEl = document.getElementById("participants");
-    const checkBtn = document.getElementById("checkBtn");
-    const downloadBtn = document.getElementById("downloadBtn");
+    const message = document.getElementById("message");
 
-    // Show spinner
     function showLoader(show) {
       loader.style.display = show ? "block" : "none";
+      createBtn.disabled = show;
     }
 
-    // Create session
-    document.getElementById("createBtn").onclick = async () => {
-      const ownerName = document.getElementById("ownerName").value;
-      const groupLink = document.getElementById("groupLink").value;
-      const duration = parseInt(document.getElementById("duration").value);
+    createBtn.onclick = async () => {
+      const owner = document.getElementById("owner").value.trim();
+      const groupLink = document.getElementById("groupLink").value.trim();
+      const minutes = parseInt(document.getElementById("duration").value);
 
-      if (!ownerName || !groupLink) return alert("Fill all fields!");
+      if (!owner || !groupLink || !minutes || minutes < 1) {
+        alert("Please fill all fields correctly (duration must be at least 1 minute)!");
+        return;
+      }
 
       showLoader(true);
-      try {
-        const expiry = Date.now() + duration * 60000;
-        const payload = { owner: ownerName, groupLink, expiresAt: expiry, contacts: [] };
+      message.innerHTML = "";
 
+      try {
+        const expiresAt = Date.now() + minutes * 60000;
+
+        // Create new session bin
         const res = await fetch("https://api.jsonbin.io/v3/b", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "X-Master-Key": API_KEY
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            owner,
+            groupLink,
+            expiresAt,
+            contacts: []
+          })
         });
 
-        const data = await res.json();
         if (!res.ok) throw new Error("Failed to create session");
-
-        binId = data.metadata?.id || data.id;
-        expiresAt = expiry;
-
-        localStorage.setItem("binId", binId);
-        localStorage.setItem("expiresAt", expiresAt);
-
-        loadDashboard();
-      } catch (e) {
-        alert("Error creating session: " + e.message);
-      }
-      showLoader(false);
-    };
-
-    // Load dashboard
-    function loadDashboard() {
-      createForm.style.display = "none";
-      dashboard.style.display = "block";
-      joinLink.href = `join.html?binId=${binId}`;
-      joinLink.innerText = joinLink.href;
-      expiresAtText.innerText = new Date(parseInt(expiresAt)).toLocaleString();
-      checkParticipants();
-    }
-
-    // Fetch participants
-    async function checkParticipants() {
-      if (!binId) return;
-      showLoader(true);
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-          headers: { "X-Master-Key": API_KEY }
-        });
         const data = await res.json();
+        const binId = data.metadata.id;
 
-        if (Date.now() >= parseInt(data.record.expiresAt)) {
-          statusEl.innerText = "⏰ Session expired.";
-          checkBtn.style.display = "none";
-          downloadBtn.style.display = "block";
-          return;
-        }
-
-        const participants = data.record.contacts || [];
-        statusEl.innerHTML = `👥 Total Participants: <b>${participants.length}</b>`;
-        participantsEl.innerHTML = participants.map(p => `- ${p.name} (${p.phone})`).join("<br>");
+        const joinUrl = `${window.location.origin}/join.html?binId=${binId}`;
+        message.innerHTML = `
+          ✅ Session created!<br>
+          <strong>Share this link:</strong><br>
+          <a href="${joinUrl}" target="_blank">${joinUrl}</a>
+        `;
       } catch (e) {
-        statusEl.innerText = "Error loading participants.";
+        message.innerHTML = "❌ Error: " + e.message;
       }
+
       showLoader(false);
-    }
-
-    checkBtn.onclick = checkParticipants;
-
-    // Download VCF
-    downloadBtn.onclick = async () => {
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-          headers: { "X-Master-Key": API_KEY }
-        });
-        const data = await res.json();
-        const contacts = data.record.contacts || [];
-
-        let vcf = "";
-        contacts.forEach(c => {
-          vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL:${c.phone}\nEND:VCARD\n`;
-        });
-
-        const blob = new Blob([vcf], { type: "text/vcard" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "contacts.vcf";
-        a.click();
-
-        // Reset session
-        localStorage.removeItem("binId");
-        localStorage.removeItem("expiresAt");
-        binId = null; expiresAt = null;
-        dashboard.style.display = "none";
-        createForm.style.display = "block";
-      } catch (e) {
-        alert("Error downloading VCF");
-      }
-    };
-
-    // On page load restore session
-    window.onload = () => {
-      if (binId && expiresAt) {
-        if (Date.now() < parseInt(expiresAt)) {
-          loadDashboard();
-        } else {
-          createForm.style.display = "none";
-          dashboard.style.display = "block";
-          statusEl.innerText = "⏰ Session expired.";
-          checkBtn.style.display = "none";
-          downloadBtn.style.display = "block";
-        }
-      }
     };
   </script>
 </body>
