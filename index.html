@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CyberSpace VCF – Create Session</title>
+  <title>CyberSpace VCF – Owner</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -13,7 +13,6 @@
       color: #333;
       text-align: center;
       padding: 20px;
-      margin: 0;
     }
     @keyframes gradientBG {
       0% { background-position: 0% 50% }
@@ -24,7 +23,7 @@
       background: white;
       border-radius: 15px;
       padding: 20px;
-      max-width: 450px;
+      max-width: 420px;
       margin: auto;
       box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
@@ -42,10 +41,6 @@
       font-weight: bold;
       border: none;
       cursor: pointer;
-      transition: background 0.3s;
-    }
-    button:hover {
-      background: #1e40af;
     }
     button:disabled {
       background: gray;
@@ -69,12 +64,14 @@
       margin-top: 15px;
       font-size: 14px;
     }
+    #dashboard {
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
-  <h2>CyberSpace VCF</h2>
-  <div class="card">
-    <h3>Create a Session</h3>
+  <h2>🚀 CyberSpace VCF (Owner)</h2>
+  <div class="card" id="createSession">
     <input id="owner" placeholder="Your Name">
     <input id="groupLink" placeholder="WhatsApp Group Link">
     <input id="duration" type="number" min="1" placeholder="Duration (minutes)">
@@ -83,65 +80,157 @@
     <div id="message"></div>
   </div>
 
+  <div class="card" id="dashboard" style="display:none;">
+    <h3>📊 Session Dashboard</h3>
+    <p><strong>Session ID:</strong> <span id="sessionId"></span></p>
+    <p><strong>Participants:</strong> <span id="participantCount">0</span></p>
+    <p><strong>Time Left:</strong> <span id="countdown"></span></p>
+    <p><a id="joinLink" target="_blank">🔗 Share Join Link</a></p>
+    <button id="downloadBtn" disabled>Download VCF</button>
+  </div>
+
   <script>
-    // 🔑 Your API key
     const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC";
+    const BASE_URL = "https://api.jsonbin.io/v3/b";
 
     const createBtn = document.getElementById("createBtn");
     const loader = document.getElementById("loader");
     const message = document.getElementById("message");
+    const createCard = document.getElementById("createSession");
+    const dashboard = document.getElementById("dashboard");
+
+    const sessionIdEl = document.getElementById("sessionId");
+    const participantCountEl = document.getElementById("participantCount");
+    const countdownEl = document.getElementById("countdown");
+    const joinLinkEl = document.getElementById("joinLink");
+    const downloadBtn = document.getElementById("downloadBtn");
+
+    let currentSession = null;
+    let countdownTimer = null;
 
     function showLoader(show) {
       loader.style.display = show ? "block" : "none";
       createBtn.disabled = show;
     }
 
-    createBtn.onclick = async () => {
+    function saveSessionLocal(session) {
+      localStorage.setItem("cyberspaceVCF", JSON.stringify(session));
+    }
+
+    function loadSessionLocal() {
+      return JSON.parse(localStorage.getItem("cyberspaceVCF"));
+    }
+
+    async function fetchSession(binId) {
+      const res = await fetch(`${BASE_URL}/${binId}/latest`, {
+        headers: { "X-Master-Key": API_KEY }
+      });
+      if (!res.ok) throw new Error("Failed to fetch session");
+      return res.json();
+    }
+
+    function startCountdown(expiresAt) {
+      if (countdownTimer) clearInterval(countdownTimer);
+      countdownTimer = setInterval(() => {
+        const diff = expiresAt - Date.now();
+        if (diff <= 0) {
+          countdownEl.textContent = "Expired";
+          downloadBtn.disabled = false;
+          clearInterval(countdownTimer);
+        } else {
+          const mins = Math.floor(diff / 60000);
+          const secs = Math.floor((diff % 60000) / 1000);
+          countdownEl.textContent = `${mins}m ${secs}s`;
+        }
+      }, 1000);
+    }
+
+    function buildVCard(contacts) {
+      return contacts.map(c =>
+        `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL;TYPE=CELL:${c.phone}\nEND:VCARD`
+      ).join("\n");
+    }
+
+    async function updateDashboard(binId, expiresAt) {
+      try {
+        const data = await fetchSession(binId);
+        const contacts = data.record.contacts || [];
+        participantCountEl.textContent = contacts.length;
+        startCountdown(expiresAt);
+
+        downloadBtn.onclick = () => {
+          const vcf = buildVCard(contacts);
+          const blob = new Blob([vcf], { type: "text/vcard" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "contacts.vcf";
+          a.click();
+          localStorage.removeItem("cyberspaceVCF"); // clear session after download
+        };
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function createSession() {
       const owner = document.getElementById("owner").value.trim();
       const groupLink = document.getElementById("groupLink").value.trim();
       const minutes = parseInt(document.getElementById("duration").value);
 
       if (!owner || !groupLink || !minutes || minutes < 1) {
-        alert("Please fill all fields correctly (duration must be at least 1 minute)!");
+        alert("Please fill all fields correctly!");
         return;
       }
 
       showLoader(true);
-      message.innerHTML = "";
-
       try {
         const expiresAt = Date.now() + minutes * 60000;
+        const body = {
+          owner,
+          groupLink,
+          expiresAt,
+          contacts: []
+        };
 
-        // Create new session bin
-        const res = await fetch("https://api.jsonbin.io/v3/b", {
+        const res = await fetch(BASE_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "X-Master-Key": API_KEY
           },
-          body: JSON.stringify({
-            owner,
-            groupLink,
-            expiresAt,
-            contacts: []
-          })
+          body: JSON.stringify(body)
         });
-
-        if (!res.ok) throw new Error("Failed to create session");
         const data = await res.json();
         const binId = data.metadata.id;
 
-        const joinUrl = `${window.location.origin}/join.html?binId=${binId}`;
-        message.innerHTML = `
-          ✅ Session created!<br>
-          <strong>Share this link:</strong><br>
-          <a href="${joinUrl}" target="_blank">${joinUrl}</a>
-        `;
-      } catch (e) {
-        message.innerHTML = "❌ Error: " + e.message;
-      }
+        currentSession = { binId, expiresAt, owner };
+        saveSessionLocal(currentSession);
 
+        createCard.style.display = "none";
+        dashboard.style.display = "block";
+
+        sessionIdEl.textContent = binId;
+        joinLinkEl.href = `join.html?binId=${binId}`;
+
+        updateDashboard(binId, expiresAt);
+      } catch (e) {
+        message.textContent = "❌ Failed to create session: " + e.message;
+      }
       showLoader(false);
+    }
+
+    createBtn.onclick = createSession;
+
+    // Restore session if available
+    window.onload = () => {
+      const saved = loadSessionLocal();
+      if (saved && Date.now() < saved.expiresAt) {
+        createCard.style.display = "none";
+        dashboard.style.display = "block";
+        sessionIdEl.textContent = saved.binId;
+        joinLinkEl.href = `join.html?binId=${saved.binId}`;
+        updateDashboard(saved.binId, saved.expiresAt);
+      }
     };
   </script>
 </body>
