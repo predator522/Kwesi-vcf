@@ -3,20 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Join & Save</title>
+  <title>CyberSpace VCF – Join</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+      background: linear-gradient(-45deg, #1e3a8a, #ffffff, #2563eb, #f0f4ff);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
       color: #333;
       text-align: center;
       padding: 20px;
+      margin: 0;
+    }
+    @keyframes gradientBG {
+      0% { background-position: 0% 50% }
+      50% { background-position: 100% 50% }
+      100% { background-position: 0% 50% }
     }
     .card {
       background: white;
       border-radius: 15px;
       padding: 20px;
-      max-width: 400px;
+      max-width: 450px;
       margin: auto;
       box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
@@ -29,11 +37,15 @@
       font-size: 16px;
     }
     button {
-      background: #28a745;
+      background: #2563eb;
       color: white;
       font-weight: bold;
       border: none;
       cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #1e40af;
     }
     button:disabled {
       background: gray;
@@ -43,7 +55,7 @@
       display: none;
       margin: 10px auto;
       border: 4px solid rgba(0, 0, 0, 0.2);
-      border-top: 4px solid #28a745;
+      border-top: 4px solid #2563eb;
       border-radius: 50%;
       width: 30px;
       height: 30px;
@@ -60,8 +72,9 @@
   </style>
 </head>
 <body>
-  <h2>Join & Save</h2>
+  <h2>CyberSpace VCF</h2>
   <div class="card">
+    <h3>Join & Save</h3>
     <input id="name" placeholder="Your Name">
     <input id="phone" placeholder="Your Phone (e.g., +123456789)">
     <button id="joinBtn">Join & Save</button>
@@ -70,9 +83,15 @@
   </div>
 
   <script>
+    // 🔑 Your API key & default Bin ID
     const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC";
+    let binId = "68b388a0ae596e708fdd3209"; // default bin
+
+    // Check if binId is provided in URL (takes priority)
     const urlParams = new URLSearchParams(window.location.search);
-    const binId = urlParams.get("binId");
+    if (urlParams.get("binId")) {
+      binId = urlParams.get("binId");
+    }
 
     const joinBtn = document.getElementById("joinBtn");
     const loader = document.getElementById("loader");
@@ -100,21 +119,21 @@
       message.innerHTML = "";
 
       try {
-        // Get existing data
+        // Load existing data
         const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
           headers: { "X-Master-Key": API_KEY }
         });
         if (!res.ok) throw new Error("Failed to load session");
         const data = await res.json();
 
-        // Check if expired
+        // Check expiry
         if (Date.now() >= parseInt(data.record.expiresAt)) {
           message.innerHTML = "⏰ Sorry, this session has expired.";
           showLoader(false);
           return;
         }
 
-        // Add new contact
+        // Add contact
         const contacts = data.record.contacts || [];
         contacts.push({ name, phone });
 
@@ -130,7 +149,10 @@
           })
         });
 
-        message.innerHTML = "✅ Saved! You may now join the group.<br><a href='" + data.record.groupLink + "' target='_blank'>Join WhatsApp Group</a>";
+        message.innerHTML = `
+          ✅ Saved!<br>
+          <a href="${data.record.groupLink}" target="_blank">Join WhatsApp Group</a>
+        `;
       } catch (e) {
         message.innerHTML = "❌ Error: " + e.message;
       }
