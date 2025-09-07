@@ -1,237 +1,208 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CyberSpace VCF – Owner</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(-45deg, #1e3a8a, #ffffff, #2563eb, #f0f4ff);
-      background-size: 400% 400%;
-      animation: gradientBG 15s ease infinite;
-      color: #333;
-      text-align: center;
-      padding: 20px;
-    }
-    @keyframes gradientBG {
-      0% { background-position: 0% 50% }
-      50% { background-position: 100% 50% }
-      100% { background-position: 0% 50% }
-    }
-    .card {
-      background: white;
-      border-radius: 15px;
-      padding: 20px;
-      max-width: 420px;
-      margin: auto;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    input, button {
-      width: 100%;
-      padding: 12px;
-      margin: 8px 0;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-    button {
-      background: #2563eb;
-      color: white;
-      font-weight: bold;
-      border: none;
-      cursor: pointer;
-    }
-    button:disabled {
-      background: gray;
-      cursor: not-allowed;
-    }
-    .spinner {
-      display: none;
-      margin: 10px auto;
-      border: 4px solid rgba(0, 0, 0, 0.2);
-      border-top: 4px solid #2563eb;
-      border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    #message {
-      margin-top: 15px;
-      font-size: 14px;
-    }
-    #dashboard {
-      margin-top: 20px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberSpace VCF - Owner</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin:0; padding:0;
+    min-height: 100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background: linear-gradient(45deg, #3b82f6, #ffffff);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+  }
+  @keyframes gradientBG {
+    0%{background-position:0% 50%}
+    50%{background-position:100% 50%}
+    100%{background-position:0% 50%}
+  }
+  .card{
+    background: rgba(255,255,255,0.9);
+    padding:20px;
+    border-radius:15px;
+    max-width:400px;
+    width:90%;
+    box-shadow:0 4px 10px rgba(0,0,0,0.2);
+    text-align:center;
+  }
+  input, select, button{
+    width:100%;
+    padding:12px;
+    margin:8px 0;
+    border-radius:8px;
+    font-size:16px;
+  }
+  button{
+    cursor:pointer;
+    font-weight:bold;
+    border:none;
+  }
+  .btn-primary{background:#3b82f6; color:#fff;}
+  .btn-primary:hover{background:#2563eb;}
+  .btn-secondary{background:#94a3b8; color:#fff;}
+  .btn-secondary:hover{background:#64748b;}
+  .btn-danger{background:#ef4444; color:#fff;}
+  .spinner{
+    display:none;
+    margin:10px auto;
+    border:4px solid rgba(0,0,0,0.2);
+    border-top:4px solid #3b82f6;
+    border-radius:50%;
+    width:30px; height:30px;
+    animation:spin 1s linear infinite;
+  }
+  @keyframes spin{
+    0%{transform:rotate(0deg);}
+    100%{transform:rotate(360deg);}
+  }
+  .muted{font-size:14px; color:#374151;}
+  a.download-link{display:block;margin-top:10px;color:#2563eb;text-decoration:underline;}
+</style>
 </head>
 <body>
-  <h2>🚀 CyberSpace VCF (Owner)</h2>
-  <div class="card" id="createSession">
-    <input id="owner" placeholder="Your Name">
-    <input id="groupLink" placeholder="WhatsApp Group Link">
-    <input id="duration" type="number" min="1" placeholder="Duration (minutes)">
-    <button id="createBtn">Create Session</button>
+<div class="card">
+  <h2>CyberSpace VCF</h2>
+  <div id="createSection">
+    <input id="listTitle" placeholder="List title (optional)">
+    <input id="durationValue" type="number" min="1" value="30">
+    <select id="durationUnit">
+      <option value="minutes">Minutes</option>
+      <option value="hours">Hours</option>
+      <option value="days">Days</option>
+    </select>
+    <input id="groupLink" placeholder="WhatsApp Group link (optional)">
+    <button id="createBtn" class="btn-primary">Create Session</button>
     <div class="spinner" id="loader"></div>
-    <div id="message"></div>
+    <div id="message" class="muted"></div>
   </div>
 
-  <div class="card" id="dashboard" style="display:none;">
-    <h3>📊 Session Dashboard</h3>
-    <p><strong>Session ID:</strong> <span id="sessionId"></span></p>
-    <p><strong>Participants:</strong> <span id="participantCount">0</span></p>
-    <p><strong>Time Left:</strong> <span id="countdown"></span></p>
-    <p><a id="joinLink" target="_blank">🔗 Share Join Link</a></p>
-    <button id="downloadBtn" disabled>Download VCF</button>
+  <div id="sessionSection" style="display:none;">
+    <h3 id="sessionTitle"></h3>
+    <p class="muted">Session expires in: <span id="countdown"></span></p>
+    <p class="muted">Participants: <span id="participantCount">0</span></p>
+    <a id="shareLink" class="download-link" target="_blank"></a>
+    <button id="downloadBtn" class="btn-primary">Download VCF</button>
+    <button id="closeBtn" class="btn-danger">Close Session</button>
   </div>
+</div>
 
-  <script>
-    const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC";
-    const BASE_URL = "https://api.jsonbin.io/v3/b";
+<script>
+const API_KEY = "$2a$10$eUZ7SJvj.U.Qyt/ckC6qUOSLgjgAmrnPhuoAMdkA38SwyHdJf86FW";
+const BIN_ID = "68bdff10d0ea881f40754fda";
 
-    const createBtn = document.getElementById("createBtn");
-    const loader = document.getElementById("loader");
-    const message = document.getElementById("message");
-    const createCard = document.getElementById("createSession");
-    const dashboard = document.getElementById("dashboard");
+const loader = document.getElementById("loader");
+const message = document.getElementById("message");
+const createBtn = document.getElementById("createBtn");
+const downloadBtn = document.getElementById("downloadBtn");
+const closeBtn = document.getElementById("closeBtn");
 
-    const sessionIdEl = document.getElementById("sessionId");
-    const participantCountEl = document.getElementById("participantCount");
-    const countdownEl = document.getElementById("countdown");
-    const joinLinkEl = document.getElementById("joinLink");
-    const downloadBtn = document.getElementById("downloadBtn");
+let state = null;
+let countdownInterval;
 
-    let currentSession = null;
-    let countdownTimer = null;
+function showLoader(show){ loader.style.display = show ? "block" : "none"; createBtn.disabled = show; }
 
-    function showLoader(show) {
-      loader.style.display = show ? "block" : "none";
-      createBtn.disabled = show;
-    }
+function parseDuration(value, unit){
+  const v = Math.max(1, Number(value)||1);
+  if(unit==='minutes') return v*60*1000;
+  if(unit==='hours') return v*3600*1000;
+  return v*24*3600*1000;
+}
 
-    function saveSessionLocal(session) {
-      localStorage.setItem("cyberspaceVCF", JSON.stringify(session));
-    }
+function formatCountdown(ms){
+  const s=Math.max(0, Math.floor(ms/1000));
+  const d=Math.floor(s/86400);
+  const h=Math.floor((s%86400)/3600);
+  const m=Math.floor((s%3600)/60);
+  const sec=s%60;
+  const pad=n=>String(n).padStart(2,'0');
+  if(ms<=0) return "00:00:00";
+  return (d>0?d+'d ':'') + `${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
 
-    function loadSessionLocal() {
-      return JSON.parse(localStorage.getItem("cyberspaceVCF"));
-    }
+function buildVCard(contacts){
+  const lines=[];
+  contacts.forEach(c=>{
+    lines.push('BEGIN:VCARD');
+    lines.push('VERSION:3.0');
+    lines.push(`FN:${c.name}`);
+    lines.push(`TEL;TYPE=CELL:${c.phone}`);
+    lines.push(`NOTE:https://wa.me/${c.phone.replace(/\D/g,'')}`);
+    lines.push('END:VCARD');
+  });
+  return lines.join("\n");
+}
 
-    async function fetchSession(binId) {
-      const res = await fetch(`${BASE_URL}/${binId}/latest`, {
-        headers: { "X-Master-Key": API_KEY }
-      });
-      if (!res.ok) throw new Error("Failed to fetch session");
-      return res.json();
-    }
+function downloadVCF(contacts){
+  const blob = new Blob([buildVCard(contacts)], {type:'text/vcard'});
+  const a=document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (state.title||'contacts') + ".vcf";
+  document.body.appendChild(a); a.click(); a.remove();
+}
 
-    function startCountdown(expiresAt) {
-      if (countdownTimer) clearInterval(countdownTimer);
-      countdownTimer = setInterval(() => {
-        const diff = expiresAt - Date.now();
-        if (diff <= 0) {
-          countdownEl.textContent = "Expired";
-          downloadBtn.disabled = false;
-          clearInterval(countdownTimer);
-        } else {
-          const mins = Math.floor(diff / 60000);
-          const secs = Math.floor((diff % 60000) / 1000);
-          countdownEl.textContent = `${mins}m ${secs}s`;
-        }
-      }, 1000);
-    }
+async function loadSession(){
+  if(!state) return;
+  try{
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: {"X-Master-Key": API_KEY} });
+    if(!res.ok) throw new Error("Failed to fetch session");
+    const data = await res.json();
+    state = data.record;
+    updateUI();
+  }catch(e){ console.log(e); }
+}
 
-    function buildVCard(contacts) {
-      return contacts.map(c =>
-        `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL;TYPE=CELL:${c.phone}\nEND:VCARD`
-      ).join("\n");
-    }
+function updateUI(){
+  document.getElementById("createSection").style.display="none";
+  document.getElementById("sessionSection").style.display="block";
+  document.getElementById("sessionTitle").textContent = state.title || "Untitled Session";
+  document.getElementById("participantCount").textContent = state.contacts.length;
+  document.getElementById("shareLink").textContent = window.location.href + "?binId=" + BIN_ID;
+  document.getElementById("shareLink").href = window.location.href + "?binId=" + BIN_ID;
 
-    async function updateDashboard(binId, expiresAt) {
-      try {
-        const data = await fetchSession(binId);
-        const contacts = data.record.contacts || [];
-        participantCountEl.textContent = contacts.length;
-        startCountdown(expiresAt);
+  clearInterval(countdownInterval);
+  countdownInterval = setInterval(()=>{
+    const remaining = state.expiresAt - Date.now();
+    document.getElementById("countdown").textContent = formatCountdown(remaining);
+    if(remaining <=0){ clearInterval(countdownInterval); }
+  },1000);
+}
 
-        downloadBtn.onclick = () => {
-          const vcf = buildVCard(contacts);
-          const blob = new Blob([vcf], { type: "text/vcard" });
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(blob);
-          a.download = "contacts.vcf";
-          a.click();
-          localStorage.removeItem("cyberspaceVCF"); // clear session after download
-        };
-      } catch (e) {
-        console.error(e);
-      }
-    }
+createBtn.onclick = async ()=>{
+  const title = document.getElementById("listTitle").value.trim();
+  const duration = parseDuration(document.getElementById("durationValue").value, document.getElementById("durationUnit").value);
+  const groupLink = document.getElementById("groupLink").value.trim();
+  const expiresAt = Date.now() + duration;
 
-    async function createSession() {
-      const owner = document.getElementById("owner").value.trim();
-      const groupLink = document.getElementById("groupLink").value.trim();
-      const minutes = parseInt(document.getElementById("duration").value);
+  showLoader(true);
+  message.textContent = "";
 
-      if (!owner || !groupLink || !minutes || minutes < 1) {
-        alert("Please fill all fields correctly!");
-        return;
-      }
+  try{
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json",
+        "X-Master-Key": API_KEY
+      },
+      body: JSON.stringify({title, groupLink, contacts:[], expiresAt})
+    });
+    if(!res.ok) throw new Error("Failed to create session");
+    state = {title, groupLink, contacts:[], expiresAt};
+    updateUI();
+  }catch(e){ message.textContent = e.message; }
+  showLoader(false);
+};
 
-      showLoader(true);
-      try {
-        const expiresAt = Date.now() + minutes * 60000;
-        const body = {
-          owner,
-          groupLink,
-          expiresAt,
-          contacts: []
-        };
+downloadBtn.onclick = ()=>{ downloadVCF(state.contacts); };
 
-        const res = await fetch(BASE_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Master-Key": API_KEY
-          },
-          body: JSON.stringify(body)
-        });
-        const data = await res.json();
-        const binId = data.metadata.id;
-
-        currentSession = { binId, expiresAt, owner };
-        saveSessionLocal(currentSession);
-
-        createCard.style.display = "none";
-        dashboard.style.display = "block";
-
-        sessionIdEl.textContent = binId;
-        joinLinkEl.href = `join.html?binId=${binId}`;
-
-        updateDashboard(binId, expiresAt);
-      } catch (e) {
-        message.textContent = "❌ Failed to create session: " + e.message;
-      }
-      showLoader(false);
-    }
-
-    createBtn.onclick = createSession;
-
-    // Restore session if available
-    window.onload = () => {
-      const saved = loadSessionLocal();
-      if (saved && Date.now() < saved.expiresAt) {
-        createCard.style.display = "none";
-        dashboard.style.display = "block";
-        sessionIdEl.textContent = saved.binId;
-        joinLinkEl.href = `join.html?binId=${saved.binId}`;
-        updateDashboard(saved.binId, saved.expiresAt);
-      }
-    };
-  </script>
+closeBtn.onclick = ()=>{
+  state.expiresAt = Date.now();
+  updateUI();
+};
+</script>
 </body>
 </html>
