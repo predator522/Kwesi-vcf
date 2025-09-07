@@ -1,163 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CyberSpace VCF – Join</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(-45deg, #1e3a8a, #ffffff, #2563eb, #f0f4ff);
-      background-size: 400% 400%;
-      animation: gradientBG 15s ease infinite;
-      color: #333;
-      text-align: center;
-      padding: 20px;
-      margin: 0;
-    }
-    @keyframes gradientBG {
-      0% { background-position: 0% 50% }
-      50% { background-position: 100% 50% }
-      100% { background-position: 0% 50% }
-    }
-    .card {
-      background: white;
-      border-radius: 15px;
-      padding: 20px;
-      max-width: 450px;
-      margin: auto;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    input, button {
-      width: 100%;
-      padding: 12px;
-      margin: 8px 0;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-    button {
-      background: #2563eb;
-      color: white;
-      font-weight: bold;
-      border: none;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-    button:hover {
-      background: #1e40af;
-    }
-    button:disabled {
-      background: gray;
-      cursor: not-allowed;
-    }
-    .spinner {
-      display: none;
-      margin: 10px auto;
-      border: 4px solid rgba(0, 0, 0, 0.2);
-      border-top: 4px solid #2563eb;
-      border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    #message {
-      margin-top: 15px;
-      font-size: 14px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberSpace VCF - Join</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:20px;text-align:center;min-height:100vh;
+    background: linear-gradient(45deg,#3b82f6,#ffffff);
+    background-size:400% 400%;
+    animation:gradientBG 15s ease infinite;}
+  @keyframes gradientBG{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  .card{background:rgba(255,255,255,0.9);padding:20px;border-radius:15px;max-width:400px;margin:auto;box-shadow:0 4px 10px rgba(0,0,0,0.2);}
+  input, button{width:100%;padding:12px;margin:8px 0;border-radius:8px;font-size:16px;}
+  button{cursor:pointer;font-weight:bold;border:none;background:#3b82f6;color:#fff;}
+  button:disabled{background:#94a3b8;cursor:not-allowed;}
+  .spinner{display:none;margin:10px auto;border:4px solid rgba(0,0,0,0.2);border-top:4px solid #3b82f6;border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;}
+  @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+  .muted{font-size:14px;color:#374151;}
+  a.group-link{display:block;margin-top:10px;color:#2563eb;text-decoration:underline;}
+</style>
 </head>
 <body>
+<div class="card">
   <h2>CyberSpace VCF</h2>
-  <div class="card">
-    <h3>Join & Save</h3>
-    <input id="name" placeholder="Your Name">
-    <input id="phone" placeholder="Your Phone (e.g., +123456789)">
-    <button id="joinBtn">Join & Save</button>
-    <div class="spinner" id="loader"></div>
-    <div id="message"></div>
-  </div>
+  <input id="name" placeholder="Your Name">
+  <input id="phone" placeholder="Your Phone (e.g., +123456789)">
+  <button id="joinBtn">Join & Save</button>
+  <div class="spinner" id="loader"></div>
+  <div id="message" class="muted"></div>
+</div>
 
-  <script>
-    // 🔑 Your API key & default Bin ID
-    const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC";
-    let binId = "68b388a0ae596e708fdd3209"; // default bin
+<script>
+const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC";
+const urlParams = new URLSearchParams(window.location.search);
+const BIN_ID = urlParams.get("binId");
 
-    // Check if binId is provided in URL (takes priority)
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("binId")) {
-      binId = urlParams.get("binId");
-    }
+const joinBtn = document.getElementById("joinBtn");
+const loader = document.getElementById("loader");
+const message = document.getElementById("message");
 
-    const joinBtn = document.getElementById("joinBtn");
-    const loader = document.getElementById("loader");
-    const message = document.getElementById("message");
+function showLoader(show){ loader.style.display=show?"block":"none"; joinBtn.disabled=show; }
 
-    function showLoader(show) {
-      loader.style.display = show ? "block" : "none";
-      joinBtn.disabled = show;
-    }
+joinBtn.onclick = async ()=>{
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
 
-    joinBtn.onclick = async () => {
-      const name = document.getElementById("name").value.trim();
-      const phone = document.getElementById("phone").value.trim();
+  if(!name||!phone){ message.innerHTML="⚠️ Fill all fields"; return; }
+  if(!BIN_ID){ message.innerHTML="❌ No session found."; return; }
 
-      if (!name || !phone) {
-        message.innerHTML = "⚠️ Please fill all fields!";
-        return;
-      }
-      if (!binId) {
-        message.innerHTML = "❌ No session found. Check your link.";
-        return;
-      }
+  showLoader(true);
+  message.innerHTML="";
 
-      showLoader(true);
-      message.innerHTML = "";
+  try{
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`,{ headers:{"X-Master-Key":API_KEY} });
+    if(!res.ok) throw new Error("Failed to load session");
+    const data = await res.json();
 
-      try {
-        // Load existing data
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-          headers: { "X-Master-Key": API_KEY }
-        });
-        if (!res.ok) throw new Error("Failed to load session");
-        const data = await res.json();
+    if(Date.now()>=parseInt(data.record.expiresAt)){ message.innerHTML="⏰ Session expired"; showLoader(false); return; }
 
-        // Check expiry
-        if (Date.now() >= parseInt(data.record.expiresAt)) {
-          message.innerHTML = "⏰ Sorry, this session has expired.";
-          showLoader(false);
-          return;
-        }
+    const contacts = data.record.contacts||[];
+    contacts.push({name,phone});
 
-        // Add contact
-        const contacts = data.record.contacts || [];
-        contacts.push({ name, phone });
+    await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`,{
+      method:"PUT",
+      headers:{"Content-Type":"application/json","X-Master-Key":API_KEY},
+      body: JSON.stringify({...data.record,contacts})
+    });
 
-        await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Master-Key": API_KEY
-          },
-          body: JSON.stringify({
-            ...data.record,
-            contacts
-          })
-        });
-
-        message.innerHTML = `
-          ✅ Saved!<br>
-          <a href="${data.record.groupLink}" target="_blank">Join WhatsApp Group</a>
-        `;
-      } catch (e) {
-        message.innerHTML = "❌ Error: " + e.message;
-      }
-      showLoader(false);
-    };
-  </script>
+    message.innerHTML = `✅ Saved! <a class="group-link" href="${data.record.groupLink}" target="_blank">Join WhatsApp Group</a>`;
+  }catch(e){ message.innerHTML="❌ Error: "+e.message; }
+  showLoader(false);
+};
+</script>
 </body>
 </html>
