@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberSpace VCF - Owner</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a2980, #26d0ce);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .card {
+      background: #0d1b2a;
+      border-radius: 12px;
+      padding: 25px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+    h3 {
+      color: #00cfff;
+      margin-bottom: 5px;
+    }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      transition: 0.3s;
+    }
+    .download-btn { background: #2ecc71; color: #fff; }
+    .share-btn { background: #6c63ff; color: #fff; }
+    #countdown { font-size: 18px; margin-bottom: 15px; }
+    #message { margin-top: 10px; font-size: 14px; }
+    .footer { margin-top: 12px; font-size: 13px; color: #bbb; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h3>Session Manager</h3>
+    <div id="countdown">Loading...</div>
+    <button id="downloadBtn" class="btn download-btn">⬇ Download VCF</button>
+    <button id="shareBtn" class="btn share-btn">🔗 Share Join Link</button>
+    <div id="message"></div>
+    <div class="footer">Total Contacts: <span id="total">0</span></div>
+  </div>
+
+  <script>
+    const API_KEY = "$2a$10$eUZ7SJvj.U.Qyt/ckC6qUOSLgjgAmrnPhuoAMdkA38SwyHdJf86FW";
+    const BIN_ID = "68bdff10d0ea881f40754fda";
+
+    const countdownEl = document.getElementById("countdown");
+    const totalSpan = document.getElementById("total");
+    const message = document.getElementById("message");
+
+    let expiresAt = null;
+
+    function updateCountdown() {
+      if (!expiresAt) return;
+      let diff = expiresAt - Date.now();
+      if (diff <= 0) {
+        countdownEl.textContent = "⏰ Session Ended";
+        return;
+      }
+      let h = Math.floor(diff / (1000*60*60));
+      let m = Math.floor((diff % (1000*60*60)) / (1000*60));
+      let s = Math.floor((diff % (1000*60)) / 1000);
+      countdownEl.textContent = `${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")} Until Session Is Over`;
+    }
+    setInterval(updateCountdown, 1000);
+
+    async function loadSession() {
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+          headers: { "X-Master-Key": API_KEY }
+        });
+        const data = await res.json();
+        expiresAt = parseInt(data.record.expiresAt);
+        totalSpan.textContent = (data.record.contacts || []).length;
+        updateCountdown();
+      } catch {
+        message.textContent = "⚠️ Failed to load session";
+      }
+    }
+    loadSession();
+
+    document.getElementById("downloadBtn").onclick = async () => {
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+          headers: { "X-Master-Key": API_KEY }
+        });
+        const data = await res.json();
+        const contacts = data.record.contacts || [];
+
+        let vcf = "";
+        contacts.forEach(c => {
+          vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL:${c.phone}\nEND:VCARD\n`;
+        });
+
+        const blob = new Blob([vcf], { type: "text/vcard" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "contacts.vcf";
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch {
+        message.textContent = "❌ Failed to download VCF";
+      }
+    };
+
+    document.getElementById("shareBtn").onclick = () => {
+      const joinUrl = `${location.origin}/join.html?binId=${BIN_ID}`;
+      navigator.clipboard.writeText(joinUrl);
+      message.textContent = "🔗 Join link copied!";
+    };
+  </script>
+</body>
+</html>
