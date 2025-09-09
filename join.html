@@ -1,76 +1,264 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CyberSpace VCF - Join</title>
-<style>
-  body{font-family:Arial,sans-serif;margin:0;padding:20px;text-align:center;min-height:100vh;
-    background: linear-gradient(45deg,#3b82f6,#ffffff);
-    background-size:400% 400%;
-    animation:gradientBG 15s ease infinite;}
-  @keyframes gradientBG{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-  .card{background:rgba(255,255,255,0.9);padding:20px;border-radius:15px;max-width:400px;margin:auto;box-shadow:0 4px 10px rgba(0,0,0,0.2);}
-  input, button{width:100%;padding:12px;margin:8px 0;border-radius:8px;font-size:16px;}
-  button{cursor:pointer;font-weight:bold;border:none;background:#3b82f6;color:#fff;}
-  button:disabled{background:#94a3b8;cursor:not-allowed;}
-  .spinner{display:none;margin:10px auto;border:4px solid rgba(0,0,0,0.2);border-top:4px solid #3b82f6;border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;}
-  @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
-  .muted{font-size:14px;color:#374151;}
-  a.group-link{display:block;margin-top:10px;color:#2563eb;text-decoration:underline;}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberSpace VCF - Join</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a2980, #26d0ce); /* sea blue gradient */
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .card {
+      background: #0d1b2a;
+      border-radius: 12px;
+      padding: 25px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+
+    h3 {
+      color: #00cfff;
+      margin-bottom: 5px;
+    }
+
+    #countdown {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+      font-size: 15px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      transition: 0.3s;
+    }
+
+    .save-btn {
+      background: #444;
+      color: #ddd;
+    }
+
+    .save-btn.active {
+      background: #28a745;
+      color: #fff;
+    }
+
+    .download-btn {
+      background: #2ecc71;
+      color: #fff;
+    }
+
+    .share-btn {
+      background: #6c63ff;
+      color: #fff;
+    }
+
+    .whatsapp-btn {
+      background: #25d366;
+      color: #fff;
+      font-size: 18px;
+    }
+
+    .rules {
+      background: #1b263b;
+      color: #fff; /* White text */
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin: 12px 0;
+    }
+
+    #message {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .footer {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #bbb;
+    }
+  </style>
 </head>
 <body>
-<div class="card">
-  <h2>CyberSpace VCF</h2>
-  <input id="name" placeholder="Your Name">
-  <input id="phone" placeholder="Your Phone (e.g., +123456789)">
-  <button id="joinBtn">Join & Save</button>
-  <div class="spinner" id="loader"></div>
-  <div id="message" class="muted"></div>
-</div>
+  <div class="card">
+    <h3>SESSION IS ACTIVE</h3>
+    <div id="countdown">Loading...</div>
 
-<script>
-const API_KEY = "$2a$10$lnxPgBn17zOR3IDXA0JLTu8kBwjfTzQWfFnRxg5Q.B8pAew9/.xgC";
-const urlParams = new URLSearchParams(window.location.search);
-const BIN_ID = urlParams.get("binId");
+    <input id="name" placeholder="Name">
+    <input id="phone" placeholder="Number (e.g., +1234567890)"> <!-- changed to +1 -->
 
-const joinBtn = document.getElementById("joinBtn");
-const loader = document.getElementById("loader");
-const message = document.getElementById("message");
+    <button id="joinBtn" class="btn save-btn">Save Contact</button>
 
-function showLoader(show){ loader.style.display=show?"block":"none"; joinBtn.disabled=show; }
+    <div class="rules">
+      Note: Include Your Country Code In Your Number || Avoid Letters
+    </div>
 
-joinBtn.onclick = async ()=>{
-  const name = document.getElementById("name").value.trim();
-  const phone = document.getElementById("phone").value.trim();
+    <!-- ✅ Big green WhatsApp button -->
+    <button id="whatsappBtn" class="btn whatsapp-btn">💬 Join WhatsApp Group</button>
 
-  if(!name||!phone){ message.innerHTML="⚠️ Fill all fields"; return; }
-  if(!BIN_ID){ message.innerHTML="❌ No session found."; return; }
+    <button id="downloadBtn" class="btn download-btn">⬇ Download VCF</button>
+    <button id="shareBtn" class="btn share-btn">🔗 Share Website</button>
 
-  showLoader(true);
-  message.innerHTML="";
+    <div id="message"></div>
+    <div class="footer">Total VCFs This Session: <span id="total">0</span></div>
+  </div>
 
-  try{
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`,{ headers:{"X-Master-Key":API_KEY} });
-    if(!res.ok) throw new Error("Failed to load session");
-    const data = await res.json();
+  <script>
+    // ✅ Same API key + Bin ID used in index.html & owner.html
+    const API_KEY = "$2a$10$eUZ7SJvj.U.Qyt/ckC6qUOSLgjgAmrnPhuoAMdkA38SwyHdJf86FW";
+    const binId = "68bdff10d0ea881f40754fda";
 
-    if(Date.now()>=parseInt(data.record.expiresAt)){ message.innerHTML="⏰ Session expired"; showLoader(false); return; }
+    const joinBtn = document.getElementById("joinBtn");
+    const nameInput = document.getElementById("name");
+    const phoneInput = document.getElementById("phone");
+    const message = document.getElementById("message");
+    const totalSpan = document.getElementById("total");
+    const countdownEl = document.getElementById("countdown");
 
-    const contacts = data.record.contacts||[];
-    contacts.push({name,phone});
+    let expiresAt = null;
 
-    await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`,{
-      method:"PUT",
-      headers:{"Content-Type":"application/json","X-Master-Key":API_KEY},
-      body: JSON.stringify({...data.record,contacts})
+    // Countdown
+    function updateCountdown() {
+      if (!expiresAt) return;
+      let diff = expiresAt - Date.now();
+      if (diff <= 0) {
+        countdownEl.textContent = "⏰ Session Ended";
+        joinBtn.disabled = true;
+        return;
+      }
+      let h = Math.floor(diff / (1000*60*60));
+      let m = Math.floor((diff % (1000*60*60)) / (1000*60));
+      let s = Math.floor((diff % (1000*60)) / 1000);
+      countdownEl.textContent = `${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")} Until Session Is Over`;
+    }
+
+    setInterval(updateCountdown, 1000);
+
+    // Load session
+    async function loadSession() {
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+          headers: { "X-Master-Key": API_KEY }
+        });
+        const data = await res.json();
+        const record = data.record;
+        expiresAt = parseInt(record.expiresAt);
+        totalSpan.textContent = (record.contacts || []).length;
+        updateCountdown();
+      } catch (err) {
+        console.error(err);
+        message.textContent = "⚠️ Failed to load session";
+      }
+    }
+
+    loadSession();
+
+    // Save contact
+    joinBtn.addEventListener("click", async () => {
+      const name = nameInput.value.trim();
+      const phone = phoneInput.value.trim();
+      if (!name || !phone) {
+        message.textContent = "⚠️ Fill all fields!";
+        return;
+      }
+
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+          headers: { "X-Master-Key": API_KEY }
+        });
+        const data = await res.json();
+        let contacts = data.record.contacts || [];
+
+        if (contacts.find(c => c.phone === phone)) {
+          message.textContent = "⚠️ This number already exists.";
+          return;
+        }
+
+        contacts.push({ name, phone });
+
+        await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Master-Key": API_KEY
+          },
+          body: JSON.stringify({ ...data.record, contacts })
+        });
+
+        message.textContent = "✅ Contact saved!";
+        totalSpan.textContent = contacts.length;
+        nameInput.value = "";
+        phoneInput.value = "";
+      } catch (err) {
+        console.error(err);
+        message.textContent = "❌ Error saving contact";
+      }
     });
 
-    message.innerHTML = `✅ Saved! <a class="group-link" href="${data.record.groupLink}" target="_blank">Join WhatsApp Group</a>`;
-  }catch(e){ message.innerHTML="❌ Error: "+e.message; }
-  showLoader(false);
-};
-</script>
+    // Share website
+    document.getElementById("shareBtn").onclick = () => {
+      const shareUrl = window.location.href;
+      navigator.clipboard.writeText(shareUrl);
+      message.textContent = "🔗 Link copied to clipboard!";
+    };
+
+    // Download VCF
+    document.getElementById("downloadBtn").onclick = async () => {
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+          headers: { "X-Master-Key": API_KEY }
+        });
+        const data = await res.json();
+        let contacts = data.record.contacts || [];
+
+        let vcf = "";
+        contacts.forEach(c => {
+          vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL:${c.phone}\nEND:VCARD\n`;
+        });
+
+        const blob = new Blob([vcf], { type: "text/vcard" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "contacts.vcf";
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        message.textContent = "❌ Failed to download VCF";
+      }
+    };
+
+    // ✅ WhatsApp Group button
+    document.getElementById("whatsappBtn").onclick = () => {
+      window.open("https://chat.whatsapp.com/YOUR_GROUP_LINK", "_blank");
+    };
+  </script>
 </body>
 </html>
