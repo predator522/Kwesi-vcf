@@ -56,75 +56,67 @@
     <div class="footer">Total Contacts: <span id="total">0</span></div>
   </div>
 
+  <!-- ✅ Custom Retired Popup Script -->
   <script>
-    const API_KEY = "$2a$10$eUZ7SJvj.U.Qyt/ckC6qUOSLgjgAmrnPhuoAMdkA38SwyHdJf86FW";
-    const BIN_ID = "68bdff10d0ea881f40754fda";
-
-    const countdownEl = document.getElementById("countdown");
-    const totalSpan = document.getElementById("total");
-    const message = document.getElementById("message");
-
-    let expiresAt = null;
-
-    function updateCountdown() {
-      if (!expiresAt) return;
-      let diff = expiresAt - Date.now();
-      if (diff <= 0) {
-        countdownEl.textContent = "⏰ Session Ended";
+    function showRetiredPopup() {
+      if (document.getElementById("retiredPopup")) {
+        document.getElementById("retiredPopup").style.display = "flex";
         return;
       }
-      let h = Math.floor(diff / (1000*60*60));
-      let m = Math.floor((diff % (1000*60*60)) / (1000*60));
-      let s = Math.floor((diff % (1000*60)) / 1000);
-      countdownEl.textContent = `${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")} Until Session Is Over`;
+
+      const overlay = document.createElement("div");
+      overlay.id = "retiredPopup";
+      overlay.style.position = "fixed";
+      overlay.style.top = "0";
+      overlay.style.left = "0";
+      overlay.style.width = "100%";
+      overlay.style.height = "100%";
+      overlay.style.background = "rgba(0,0,0,0.8)";
+      overlay.style.display = "flex";
+      overlay.style.alignItems = "center";
+      overlay.style.justifyContent = "center";
+      overlay.style.zIndex = "9999";
+
+      const box = document.createElement("div");
+      box.style.background = "#111";
+      box.style.color = "#ff3b3b";
+      box.style.padding = "25px 35px";
+      box.style.borderRadius = "12px";
+      box.style.fontSize = "18px";
+      box.style.fontWeight = "bold";
+      box.style.boxShadow = "0 0 25px rgba(255,0,0,0.6)";
+      box.style.textAlign = "center";
+      box.innerHTML = "⚠️ The developer <span style='color:white'>King Tesla</span> retired.";
+
+      overlay.addEventListener("click", () => {
+        overlay.style.display = "none";
+      });
+
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
     }
-    setInterval(updateCountdown, 1000);
 
-    async function loadSession() {
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-          headers: { "X-Master-Key": API_KEY }
+    function retireAll() {
+      // Override all button clicks
+      document.querySelectorAll("button").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          showRetiredPopup();
         });
-        const data = await res.json();
-        expiresAt = parseInt(data.record.expiresAt);
-        totalSpan.textContent = (data.record.contacts || []).length;
-        updateCountdown();
-      } catch {
-        message.textContent = "⚠️ Failed to load session";
-      }
+      });
+
+      // Override pressing Enter in inputs (if any)
+      document.querySelectorAll("input").forEach(inp => {
+        inp.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            showRetiredPopup();
+          }
+        });
+      });
     }
-    loadSession();
 
-    document.getElementById("downloadBtn").onclick = async () => {
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-          headers: { "X-Master-Key": API_KEY }
-        });
-        const data = await res.json();
-        const contacts = data.record.contacts || [];
-
-        let vcf = "";
-        contacts.forEach(c => {
-          vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL:${c.phone}\nEND:VCARD\n`;
-        });
-
-        const blob = new Blob([vcf], { type: "text/vcard" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "contacts.vcf";
-        a.click();
-        URL.revokeObjectURL(url);
-      } catch {
-        message.textContent = "❌ Failed to download VCF";
-      }
-    };
-
-    document.getElementById("shareBtn").onclick = () => {
-      const joinUrl = `${location.origin}/join.html?binId=${BIN_ID}`;
-      navigator.clipboard.writeText(joinUrl);
-      message.textContent = "🔗 Join link copied!";
-    };
+    window.onload = retireAll;
   </script>
 </body>
 </html>
