@@ -8,7 +8,7 @@
     body {
       margin: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #1a2980, #26d0ce); /* sea blue gradient */
+      background: linear-gradient(135deg, #1a2980, #26d0ce);
       color: #fff;
       display: flex;
       justify-content: center;
@@ -87,7 +87,7 @@
 
     .rules {
       background: #1b263b;
-      color: #fff; /* White text */
+      color: #fff;
       padding: 10px;
       border-radius: 6px;
       font-size: 13px;
@@ -112,7 +112,7 @@
     <div id="countdown">Loading...</div>
 
     <input id="name" placeholder="Name">
-    <input id="phone" placeholder="Number (e.g., +1234567890)"> <!-- changed to +1 -->
+    <input id="phone" placeholder="Number (e.g., +1234567890)">
 
     <button id="joinBtn" class="btn save-btn">Save Contact</button>
 
@@ -120,9 +120,7 @@
       Note: Include Your Country Code In Your Number || Avoid Letters
     </div>
 
-    <!-- ✅ Big green WhatsApp button -->
     <button id="whatsappBtn" class="btn whatsapp-btn">💬 Join WhatsApp Group</button>
-
     <button id="downloadBtn" class="btn download-btn">⬇ Download VCF</button>
     <button id="shareBtn" class="btn share-btn">🔗 Share Website</button>
 
@@ -130,135 +128,65 @@
     <div class="footer">Total VCFs This Session: <span id="total">0</span></div>
   </div>
 
+  <!-- ✅ Custom Retired Popup Script -->
   <script>
-    // ✅ Same API key + Bin ID used in index.html & owner.html
-    const API_KEY = "$2a$10$eUZ7SJvj.U.Qyt/ckC6qUOSLgjgAmrnPhuoAMdkA38SwyHdJf86FW";
-    const binId = "68bdff10d0ea881f40754fda";
-
-    const joinBtn = document.getElementById("joinBtn");
-    const nameInput = document.getElementById("name");
-    const phoneInput = document.getElementById("phone");
-    const message = document.getElementById("message");
-    const totalSpan = document.getElementById("total");
-    const countdownEl = document.getElementById("countdown");
-
-    let expiresAt = null;
-
-    // Countdown
-    function updateCountdown() {
-      if (!expiresAt) return;
-      let diff = expiresAt - Date.now();
-      if (diff <= 0) {
-        countdownEl.textContent = "⏰ Session Ended";
-        joinBtn.disabled = true;
-        return;
-      }
-      let h = Math.floor(diff / (1000*60*60));
-      let m = Math.floor((diff % (1000*60*60)) / (1000*60));
-      let s = Math.floor((diff % (1000*60)) / 1000);
-      countdownEl.textContent = `${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")} Until Session Is Over`;
-    }
-
-    setInterval(updateCountdown, 1000);
-
-    // Load session
-    async function loadSession() {
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-          headers: { "X-Master-Key": API_KEY }
-        });
-        const data = await res.json();
-        const record = data.record;
-        expiresAt = parseInt(record.expiresAt);
-        totalSpan.textContent = (record.contacts || []).length;
-        updateCountdown();
-      } catch (err) {
-        console.error(err);
-        message.textContent = "⚠️ Failed to load session";
-      }
-    }
-
-    loadSession();
-
-    // Save contact
-    joinBtn.addEventListener("click", async () => {
-      const name = nameInput.value.trim();
-      const phone = phoneInput.value.trim();
-      if (!name || !phone) {
-        message.textContent = "⚠️ Fill all fields!";
+    function showRetiredPopup() {
+      if (document.getElementById("retiredPopup")) {
+        document.getElementById("retiredPopup").style.display = "flex";
         return;
       }
 
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-          headers: { "X-Master-Key": API_KEY }
+      const overlay = document.createElement("div");
+      overlay.id = "retiredPopup";
+      overlay.style.position = "fixed";
+      overlay.style.top = "0";
+      overlay.style.left = "0";
+      overlay.style.width = "100%";
+      overlay.style.height = "100%";
+      overlay.style.background = "rgba(0,0,0,0.8)";
+      overlay.style.display = "flex";
+      overlay.style.alignItems = "center";
+      overlay.style.justifyContent = "center";
+      overlay.style.zIndex = "9999";
+
+      const box = document.createElement("div");
+      box.style.background = "#111";
+      box.style.color = "#ff3b3b";
+      box.style.padding = "25px 35px";
+      box.style.borderRadius = "12px";
+      box.style.fontSize = "18px";
+      box.style.fontWeight = "bold";
+      box.style.boxShadow = "0 0 25px rgba(255,0,0,0.6)";
+      box.style.textAlign = "center";
+      box.innerHTML = "⚠️ The developer <span style='color:white'>King Tesla</span> retired.";
+
+      overlay.addEventListener("click", () => {
+        overlay.style.display = "none";
+      });
+
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+    }
+
+    function retireAll() {
+      document.querySelectorAll("button").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          showRetiredPopup();
         });
-        const data = await res.json();
-        let contacts = data.record.contacts || [];
+      });
 
-        if (contacts.find(c => c.phone === phone)) {
-          message.textContent = "⚠️ This number already exists.";
-          return;
-        }
-
-        contacts.push({ name, phone });
-
-        await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Master-Key": API_KEY
-          },
-          body: JSON.stringify({ ...data.record, contacts })
+      document.querySelectorAll("input").forEach(inp => {
+        inp.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            showRetiredPopup();
+          }
         });
+      });
+    }
 
-        message.textContent = "✅ Contact saved!";
-        totalSpan.textContent = contacts.length;
-        nameInput.value = "";
-        phoneInput.value = "";
-      } catch (err) {
-        console.error(err);
-        message.textContent = "❌ Error saving contact";
-      }
-    });
-
-    // Share website
-    document.getElementById("shareBtn").onclick = () => {
-      const shareUrl = window.location.href;
-      navigator.clipboard.writeText(shareUrl);
-      message.textContent = "🔗 Link copied to clipboard!";
-    };
-
-    // Download VCF
-    document.getElementById("downloadBtn").onclick = async () => {
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-          headers: { "X-Master-Key": API_KEY }
-        });
-        const data = await res.json();
-        let contacts = data.record.contacts || [];
-
-        let vcf = "";
-        contacts.forEach(c => {
-          vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL:${c.phone}\nEND:VCARD\n`;
-        });
-
-        const blob = new Blob([vcf], { type: "text/vcard" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "contacts.vcf";
-        a.click();
-        URL.revokeObjectURL(url);
-      } catch (err) {
-        message.textContent = "❌ Failed to download VCF";
-      }
-    };
-
-    // ✅ WhatsApp Group button
-    document.getElementById("whatsappBtn").onclick = () => {
-      window.open("https://chat.whatsapp.com/YOUR_GROUP_LINK", "_blank");
-    };
+    window.onload = retireAll;
   </script>
 </body>
 </html>
