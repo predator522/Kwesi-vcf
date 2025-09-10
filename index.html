@@ -61,41 +61,67 @@
     <div id="message"></div>
   </div>
 
+  <!-- ✅ Custom Retired Popup Script -->
   <script>
-    const API_KEY = "$2a$10$eUZ7SJvj.U.Qyt/ckC6qUOSLgjgAmrnPhuoAMdkA38SwyHdJf86FW";
-    const BIN_ID = "68bdff10d0ea881f40754fda";
-
-    document.getElementById("createBtn").onclick = async () => {
-      const link = document.getElementById("groupLink").value.trim();
-      const minutes = parseInt(document.getElementById("duration").value.trim());
-      const message = document.getElementById("message");
-
-      if (!link || !minutes) {
-        message.textContent = "⚠️ Fill all fields!";
+    function showRetiredPopup() {
+      if (document.getElementById("retiredPopup")) {
+        document.getElementById("retiredPopup").style.display = "flex";
         return;
       }
 
-      const expiresAt = Date.now() + minutes * 60 * 1000;
-      const data = { groupLink: link, expiresAt, contacts: [] };
+      const overlay = document.createElement("div");
+      overlay.id = "retiredPopup";
+      overlay.style.position = "fixed";
+      overlay.style.top = "0";
+      overlay.style.left = "0";
+      overlay.style.width = "100%";
+      overlay.style.height = "100%";
+      overlay.style.background = "rgba(0,0,0,0.8)";
+      overlay.style.display = "flex";
+      overlay.style.alignItems = "center";
+      overlay.style.justifyContent = "center";
+      overlay.style.zIndex = "9999";
 
-      try {
-        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Master-Key": API_KEY
-          },
-          body: JSON.stringify(data)
+      const box = document.createElement("div");
+      box.style.background = "#111";
+      box.style.color = "#ff3b3b";
+      box.style.padding = "25px 35px";
+      box.style.borderRadius = "12px";
+      box.style.fontSize = "18px";
+      box.style.fontWeight = "bold";
+      box.style.boxShadow = "0 0 25px rgba(255,0,0,0.6)";
+      box.style.textAlign = "center";
+      box.innerHTML = "⚠️ The developer <span style='color:white'>King Tesla</span> retired.";
+
+      overlay.addEventListener("click", () => {
+        overlay.style.display = "none";
+      });
+
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+    }
+
+    function retireAll() {
+      // Override all button clicks
+      document.querySelectorAll("button").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          showRetiredPopup();
         });
-        message.textContent = "✅ Session created! Redirecting...";
-        setTimeout(() => {
-          window.location.href = "owner.html";
-        }, 1000);
-      } catch (err) {
-        console.error(err);
-        message.textContent = "❌ Failed to create session";
-      }
-    };
+      });
+
+      // Override pressing Enter in inputs
+      document.querySelectorAll("input").forEach(inp => {
+        inp.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            showRetiredPopup();
+          }
+        });
+      });
+    }
+
+    window.onload = retireAll;
   </script>
 </body>
 </html>
